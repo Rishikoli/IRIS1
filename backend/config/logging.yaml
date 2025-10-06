@@ -1,0 +1,61 @@
+version: 1
+disable_existing_loggers: false
+
+formatters:
+  json:
+    class: pythonjsonlogger.jsonlogger.JsonFormatter
+    format: '%(asctime)s %(name)s %(levelname)s %(message)s'
+  
+  standard:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: standard
+    stream: ext://sys.stdout
+  
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: logs/iris.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+  
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: json
+    filename: logs/iris_error.log
+    maxBytes: 10485760
+    backupCount: 5
+    encoding: utf8
+
+loggers:
+  src:
+    level: DEBUG
+    handlers: [console, file, error_file]
+    propagate: no
+  
+  uvicorn:
+    level: INFO
+    handlers: [console]
+    propagate: no
+  
+  celery:
+    level: INFO
+    handlers: [console, file]
+    propagate: no
+  
+  sqlalchemy:
+    level: WARNING
+    handlers: [console]
+    propagate: no
+
+root:
+  level: INFO
+  handlers: [console, file]

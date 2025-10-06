@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+Docs/
+*.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (keep data directories but ignore contents)
+data/uploads/*
+data/reports/*
+data/pdfs/*
+logs/*.log
+
+# Environment
+.env
+.env.*
+
+# Docker
+docker-compose.yml
+Dockerfile
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+.DS_Store

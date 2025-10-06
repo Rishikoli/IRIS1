@@ -1,0 +1,283 @@
+version: '3.8'
+
+# =============================================================================
+# Project IRIS - Docker Compose Configuration
+# Financial Forensics Analysis Platform
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # FastAPI Application
+  # ===========================================================================
+  iris-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: iris-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - FMP_API_KEY=${FMP_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=postgresql://${DB_USER:-iris}:${DB_PASSWORD:-iris_password}@postgres:5432/${DB_NAME:-iris_forensic}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OPENVINO_ENABLED=true
+      - INTEL_PYTORCH_ENABLED=true
+      - INTEL_PYTORCH_VERSION=2.6.0
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - iris-network
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ===========================================================================
+  # Celery Worker (Forensic Analysis)
+  # ===========================================================================
+  celery-worker-forensic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery-worker-forensic
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - FMP_API_KEY=${FMP_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DATABASE_URL=postgresql://${DB_USER:-iris}:${DB_PASSWORD:-iris_password}@postgres:5432/${DB_NAME:-iris_forensic}
+      - REDIS_URL=redis://redis:6379/0
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OPENVINO_ENABLED=true
+      - INTEL_PYTORCH_ENABLED=true
+      - INTEL_PYTORCH_VERSION=2.6.0
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - iris-network
+    command: celery -A src.celery_app worker --loglevel=info --concurrency=4 -Q forensic_analysis
+
+  # ===========================================================================
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: celery-beat
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=postgresql://${DB_USER:-iris}:${DB_PASSWORD:-iris_password}@postgres:5432/${DB_NAME:-iris_forensic}
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - iris-network
+    command: celery -A src.celery_app beat --loglevel=info
+
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: iris-postgres
+    environment:
+      - POSTGRES_USER=${DB_USER:-iris}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-iris_password}
+      - POSTGRES_DB=${DB_NAME:-iris_forensic}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/database/migrations/create_tables.sql:/docker-entrypoint-initdb.d/01_create_tables.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-iris} -d ${DB_NAME:-iris_forensic}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - iris-network
+
+  # ===========================================================================
+  # Redis (Celery Broker + Cache)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: iris-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - iris-network
+    command: redis-server --appendonly yes
+
+  # ===========================================================================
+  # ChromaDB (Vector Database)
+  # ===========================================================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: iris-chromadb
+    ports:
+      - "${CHROMA_PORT:-8001}:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - ALLOW_RESET=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    networks:
+      - iris-network
+
+  # ===========================================================================
+  # Prometheus (Metrics Collection)
+  # ===========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: iris-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - iris-network
+
+  # ===========================================================================
+  # Grafana (Monitoring Dashboards)
+  # ===========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: iris-grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - iris-network
+
+  # ===========================================================================
+  # PgAdmin (Database Management - Optional)
+  # ===========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: iris-pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@iris.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - iris-network
+    profiles:
+      - tools  # Only start with: docker-compose --profile tools up
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  iris-network:
+    driver: bridge
+    name: iris-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: iris-postgres-data
+  redis_data:
+    name: iris-redis-data
+  chromadb_data:
+    name: iris-chromadb-data
+  prometheus_data:
+    name: iris-prometheus-data
+  grafana_data:
+    name: iris-grafana-data
+  pgadmin_data:
+    name: iris-pgadmin-data
+
+# =============================================================================
+# Usage Instructions
+# =============================================================================
+# 
+# Start all services:
+#   docker-compose up -d
+#
+# Start with PgAdmin:
+#   docker-compose --profile tools up -d
+#
+# View logs:
+#   docker-compose logs -f iris-api
+#
+# Stop all services:
+#   docker-compose down
+#
+# Remove volumes (WARNING: deletes all data):
+#   docker-compose down -v
+#
+# Rebuild images:
+#   docker-compose build --no-cache
+#
+# Access services:
+#   - API Swagger: http://localhost:8000/docs
+#   - Prometheus: http://localhost:9090
+#   - Grafana: http://localhost:3000 (admin/admin)
+#   - PgAdmin: http://localhost:5050 (admin@iris.local/admin)
+#   - ChromaDB: http://localhost:8001
+#
+# =============================================================================
