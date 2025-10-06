@@ -98,6 +98,8 @@ celerybeat.pid
 *.swp
 Thumbs.db
 
+
+/Docs
 # API Keys & Secrets
 *.pem
 *.key
