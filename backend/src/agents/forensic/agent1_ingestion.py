@@ -11,10 +11,10 @@ import asyncio
 from decimal import Decimal, InvalidOperation
 import re
 
-from src.api_clients import FMPAPIClient, NSEClient, BSEClient
-from src.models import Company, FinancialStatement, StatementType, ReportingPeriod
-from src.database.connection import get_db_client
-from src.config import settings
+from api_clients import FMPAPIClient, NSEClient, BSEClient
+from models import Company, FinancialStatement, StatementType, ReportingPeriod
+from database.connection import get_db_client
+from config import settings
 
 logger = logging.getLogger(__name__)
 

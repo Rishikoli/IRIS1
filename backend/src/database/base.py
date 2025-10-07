@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
 
-from src.config import settings
+from config import settings
 
 # Create base class for all models
 Base = declarative_base()

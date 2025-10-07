@@ -2,17 +2,28 @@
 Project IRIS - FastAPI Main Application
 Financial Forensics Analysis Platform
 """
-
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from src.config import settings
+from config import settings
+
+# Import API routes
+from api.routes import companies, forensic
 
 # Configure logging
+log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+if settings.log_format == 'json':
+    # For JSON logging, use a simple format for now
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
-    format=settings.log_format
+    format=log_format
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +45,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routes
+app.include_router(companies.router)
+app.include_router(forensic.router)
 
 # Health check endpoint
 @app.get("/health")
@@ -59,7 +74,7 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "main:app",
+        "src.api.main:app",
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.api_reload,

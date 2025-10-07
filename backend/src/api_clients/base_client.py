@@ -13,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import json
 
-from src.config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

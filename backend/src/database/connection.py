@@ -1,6 +1,6 @@
 """
 Project IRIS - Database Connection Manager
-PostgreSQL connection handling with connection pooling and error management
+Supabase/PostgreSQL connection handling with connection pooling and error management
 """
 
 import logging
@@ -13,13 +13,13 @@ from sqlalchemy.exc import SQLAlchemyError, DisconnectionError, OperationalError
 from sqlalchemy.pool import QueuePool
 import time
 
-from src.config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 
-class PostgreSQLClient:
-    """PostgreSQL database client with connection pooling and error handling"""
+class DatabaseClient:
+    """Supabase/PostgreSQL database client with connection pooling and error handling"""
 
     def __init__(self):
         """Initialize the PostgreSQL client"""
@@ -30,8 +30,23 @@ class PostgreSQLClient:
     def _initialize_engine(self):
         """Initialize SQLAlchemy engine with connection pooling"""
         try:
+            import socket
+            
+            # Force IPv4 resolution for Supabase
+            original_getaddrinfo = socket.getaddrinfo
+            def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+                return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+            socket.getaddrinfo = getaddrinfo_ipv4_only
+            
+            db_url = settings.database_url
+            # Mask password for logging
+            masked_url = db_url.replace(settings.supabase_db_password, "***") if settings.supabase_db_password else db_url
+            logger.info(f"Initializing database connection to: {masked_url}")
+            print(f"DEBUG: Database URL (masked): {masked_url}")
+            print(f"DEBUG: Full URL length: {len(db_url)}")
+            
             self.engine = create_engine(
-                settings.database_url,
+                db_url,
                 poolclass=QueuePool,
                 pool_size=settings.db_pool_size,
                 max_overflow=settings.db_max_overflow,
@@ -40,7 +55,8 @@ class PostgreSQLClient:
                 echo=settings.is_development,  # Log SQL in development
                 connect_args={
                     "connect_timeout": 30,
-                    "application_name": "iris_forensic"
+                    "application_name": "iris_forensic",
+                    "options": "-c search_path=public"
                 }
             )
             
@@ -224,10 +240,10 @@ class PostgreSQLClient:
 
 
 # Global database client instance
-db_client = PostgreSQLClient()
+db_client = DatabaseClient()
 
 
-def get_db_client() -> PostgreSQLClient:
+def get_db_client() -> DatabaseClient:
     """Get the global database client instance"""
     return db_client
 

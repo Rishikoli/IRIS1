@@ -16,7 +16,7 @@ import fitz  # PyMuPDF
 from pdf2image import convert_from_path
 import openvino as ov
 
-from src.config import settings
+from config import settings
 
 logger = logging.getLogger(__name__)
 

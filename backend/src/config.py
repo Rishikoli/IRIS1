@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     bse_api_key: Optional[str] = Field(default=None, env="BSE_API_KEY")
     
     # Database
-    database_url: str = Field(..., env="DATABASE_URL")
+    supabase_url: str = Field(..., env="SUPABASE_URL")
+    supabase_key: str = Field(..., env="SUPABASE_KEY")
+    supabase_db_password: str = Field(default="", env="SUPABASE_DB_PASSWORD")
+    database_url_direct: Optional[str] = Field(default=None, env="DATABASE_URL")
     db_pool_size: int = Field(default=10, env="DB_POOL_SIZE")
     db_max_overflow: int = Field(default=20, env="DB_MAX_OVERFLOW")
     
@@ -88,6 +91,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
     
     @property
     def cors_origins_list(self) -> list:
@@ -103,7 +107,35 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if running in production mode"""
         return self.environment.lower() == "production"
-
+    
+    @property
+    def database_url(self) -> str:
+        """Construct PostgreSQL database URL from Supabase credentials"""
+        # If DATABASE_URL is provided directly, use it
+        if self.database_url_direct:
+            return self.database_url_direct
+        
+        from urllib.parse import quote_plus
+        
+        # Validate that database password is set
+        if not self.supabase_db_password:
+            raise ValueError(
+                "SUPABASE_DB_PASSWORD environment variable is not set. "
+                "Please add it to your .env file. "
+                "You can find this in your Supabase Dashboard > Settings > Database."
+            )
+        
+        # Extract project reference from Supabase URL
+        project_ref = self.supabase_url.replace('https://', '').replace('.supabase.co', '')
+        
+        # URL-encode the password to handle special characters
+        encoded_password = quote_plus(self.supabase_db_password)
+        
+        # Use Supabase connection pooler - SESSION mode on port 6543 (preferred)
+        # This avoids the 'Tenant or user not found' error that occurs with transaction pooler (5432)
+        # when username must be `postgres.<PROJECT_REF>`.
+        # Session pooler works with the standard `postgres` username.
+        return f"postgresql://postgres:{encoded_password}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
 
 # Global settings instance
 settings = Settings()

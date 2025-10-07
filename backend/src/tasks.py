@@ -4,7 +4,7 @@ Celery task definitions for async processing
 """
 
 from celery import shared_task
-from src.config import settings
+from config import settings
 
 
 @shared_task
@@ -12,7 +12,7 @@ def forensic_analysis_task(company_id: str, start_date: str, end_date: str, peri
     """
     Background task for complete forensic analysis
     """
-    from src.agents.forensic.agent6_orchestrator import ForensicOrchestratorAgent
+    from agents.forensic.agent6_orchestrator import ForensicOrchestratorAgent
 
     orchestrator = ForensicOrchestratorAgent()
     job_id = orchestrator.execute_forensic_analysis(
@@ -33,7 +33,7 @@ def sentiment_analysis_task(company_id: str):
     """
     Background task for market sentiment analysis
     """
-    from src.agents.forensic.agent8_sentiment import MarketSentimentAgent
+    from agents.forensic.agent8_sentiment import MarketSentimentAgent
 
     agent = MarketSentimentAgent()
     results = agent.analyze_company_sentiment(company_id)
@@ -50,7 +50,7 @@ def regulatory_monitoring_task(company_id: str):
     """
     Background task for regulatory monitoring
     """
-    from src.agents.forensic.agent10_regulatory import RegulatoryMonitoringAgent
+    from agents.forensic.agent10_regulatory import RegulatoryMonitoringAgent
 
     agent = RegulatoryMonitoringAgent()
     results = agent.monitor_company_regulatory_status(company_id)
@@ -67,7 +67,7 @@ def peer_benchmarking_task(company_id: str):
     """
     Background task for peer benchmarking
     """
-    from src.agents.forensic.agent9_peer_benchmarking import PeerBenchmarkingAgent
+    from agents.forensic.agent9_peer_benchmarking import PeerBenchmarkingAgent
 
     agent = PeerBenchmarkingAgent()
     results = agent.benchmark_company_peers(company_id)

@@ -12,8 +12,8 @@ from datetime import datetime
 from scipy import stats
 import math
 
-from src.config import settings
-from src.database.connection import get_db_client
+from config import settings
+from database.connection import get_db_client
 
 logger = logging.getLogger(__name__)
 
