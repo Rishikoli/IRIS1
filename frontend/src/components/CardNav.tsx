@@ -191,13 +191,22 @@ const CardNav: React.FC<CardNavProps> = ({
             <img src={logo} alt={logoAlt} className="logo h-[28px]" />
           </div>
 
-          <button
-            type="button"
-            className="card-nav-cta-button hidden md:inline-flex border-0 rounded-[calc(0.75rem-0.2rem)] px-4 h-full font-medium cursor-pointer transition-colors duration-300"
-            style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-          >
-            Get Started
-          </button>
+          <div className="hidden md:flex items-center gap-2 h-full">
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 h-full font-medium transition-colors duration-300"
+              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+            >
+              Login
+            </a>
+            <a
+              href="/register"
+              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 h-full font-medium transition-colors duration-300"
+              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+           >
+              Register
+            </a>
+          </div>
         </div>
 
         <div
@@ -231,6 +240,23 @@ const CardNav: React.FC<CardNavProps> = ({
               </div>
             </div>
           ))}
+          {/* Mobile auth buttons */}
+          <div className="md:hidden grid grid-cols-2 gap-2 mt-1">
+            <a
+              href="/login"
+              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 py-3 font-medium"
+              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+            >
+              Login
+            </a>
+            <a
+              href="/register"
+              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 py-3 font-medium"
+              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
+            >
+              Register
+            </a>
+          </div>
         </div>
       </nav>
     </div>

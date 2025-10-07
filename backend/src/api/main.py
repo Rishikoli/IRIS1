@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from src.config import settings
+from src.api.routes import auth_router
+from src.models import create_tables
 
 # Configure logging
 logging.basicConfig(
@@ -34,6 +36,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth_router)
+
+# Ensure tables exist on startup
+@app.on_event("startup")
+def on_startup():
+    create_tables()
 
 # Health check endpoint
 @app.get("/health")
