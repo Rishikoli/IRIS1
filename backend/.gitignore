@@ -100,6 +100,7 @@ Thumbs.db
 
 
 /Docs
+backend/docs
 # API Keys & Secrets
 *.pem
 *.key
