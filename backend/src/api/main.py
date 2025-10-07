@@ -10,10 +10,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from config import settings
-
-# Import API routes
-from api.routes import companies, forensic
+from src.config import settings
+from src.api.routes import companies, forensic, auth_router
+from src.models import create_tables
 
 # Configure logging
 log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -49,6 +48,12 @@ app.add_middleware(
 # Include API routes
 app.include_router(companies.router)
 app.include_router(forensic.router)
+app.include_router(auth_router)
+
+# Ensure tables exist on startup
+@app.on_event("startup")
+def on_startup():
+    create_tables()
 
 # Health check endpoint
 @app.get("/health")

@@ -30,6 +30,7 @@ from .additional import (
     Report, PeerBenchmark, SentimentAnalysis, GoogleTrendsData,
     ReportType, ReportFormat
 )
+from .user import User
 
 # List all models for easy iteration
 ALL_MODELS = [
@@ -54,6 +55,7 @@ ALL_MODELS = [
     PeerBenchmark,
     SentimentAnalysis,
     GoogleTrendsData,
+    User,
 ]
 
 __all__ = [
@@ -86,6 +88,7 @@ __all__ = [
     # Additional models
     'Report', 'PeerBenchmark', 'SentimentAnalysis', 'GoogleTrendsData',
     'ReportType', 'ReportFormat',
+    'User',
     
     # Model collections
     'ALL_MODELS',
