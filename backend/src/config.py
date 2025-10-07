@@ -136,11 +136,10 @@ class Settings(BaseSettings):
         # URL-encode the password to handle special characters
         encoded_password = quote_plus(self.supabase_db_password)
         
-        # Use Supabase connection pooler - SESSION mode on port 6543 (preferred)
-        # This avoids the 'Tenant or user not found' error that occurs with transaction pooler (5432)
-        # when username must be `postgres.<PROJECT_REF>`.
-        # Session pooler works with the standard `postgres` username.
-        return f"postgresql://postgres:{encoded_password}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+        # Use direct Supabase database connection (not pooler)
+        # Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+        # Add ?sslmode=require for SSL connection
+        return f"postgresql://postgres.{project_ref}:{encoded_password}@db.{project_ref}.supabase.co:5432/postgres?sslmode=require"
 
 # Global settings instance
 settings = Settings()

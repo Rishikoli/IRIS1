@@ -7,7 +7,7 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, Float, 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
-from .base import BaseModel, JSONBType
+from src.database.base import BaseModel, JSONBType
 
 
 class Company(BaseModel):
