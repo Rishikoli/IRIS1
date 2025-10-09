@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 from .base_client import BaseAPIClient
-from config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 

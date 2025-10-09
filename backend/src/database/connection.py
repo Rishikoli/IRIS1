@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError, DisconnectionError, OperationalError
 from sqlalchemy.pool import QueuePool
 import time
 
-from config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 

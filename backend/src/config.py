@@ -137,9 +137,9 @@ class Settings(BaseSettings):
         encoded_password = quote_plus(self.supabase_db_password)
         
         # Use direct Supabase database connection (not pooler)
-        # Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
-        # Add ?sslmode=require for SSL connection
-        return f"postgresql://postgres.{project_ref}:{encoded_password}@db.{project_ref}.supabase.co:5432/postgres?sslmode=require"
+        # Format: postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+        # Note: username is 'postgres' (not postgres.{project_ref}) for direct connections
+        return f"postgresql://postgres:{encoded_password}@db.{project_ref}.supabase.co:5432/postgres"
 
 # Global settings instance
 settings = Settings()

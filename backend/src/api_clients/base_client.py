@@ -13,7 +13,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import json
 
-from config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class BaseAPIClient(ABC):
         retry_strategy = Retry(
             total=3,
             status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],
             backoff_factor=1
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)

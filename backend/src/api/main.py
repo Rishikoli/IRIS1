@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from src.config import settings
-from src.api.routes import companies, forensic, auth_router
+from src.api.routes import companies, forensic, auth_router, realtime
 from src.models import create_tables
 
 # Configure logging
@@ -49,11 +49,17 @@ app.add_middleware(
 app.include_router(companies.router)
 app.include_router(forensic.router)
 app.include_router(auth_router)
+app.include_router(realtime.router)
 
-# Ensure tables exist on startup
+# Ensure tables exist on startup (but don't fail if DB is unavailable)
 @app.on_event("startup")
 def on_startup():
-    create_tables()
+    try:
+        create_tables()
+        logger.info("Database tables verified/created successfully")
+    except Exception as e:
+        logger.warning(f"Database connection failed during startup: {e}")
+        logger.warning("API will start without database connectivity - some endpoints may not work")
 
 # Health check endpoint
 @app.get("/health")
