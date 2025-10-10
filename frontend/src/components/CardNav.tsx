@@ -188,24 +188,7 @@ const CardNav: React.FC<CardNavProps> = ({
           </div>
 
           <div className="logo-container flex items-center md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 order-1 md:order-none">
-            <img src={logo} alt={logoAlt} className="logo h-[28px]" />
-          </div>
-
-          <div className="hidden md:flex items-center gap-2 h-full">
-            <a
-              href="/login"
-              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 h-full font-medium transition-colors duration-300"
-              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-            >
-              Login
-            </a>
-            <a
-              href="/register"
-              className="inline-flex items-center justify-center rounded-[calc(0.75rem-0.2rem)] px-4 h-full font-medium transition-colors duration-300"
-              style={{ backgroundColor: buttonBgColor, color: buttonTextColor }}
-           >
-              Register
-            </a>
+            <img src="/logo.svg" alt={logoAlt} className="logo h-[28px]" />
           </div>
         </div>
 
