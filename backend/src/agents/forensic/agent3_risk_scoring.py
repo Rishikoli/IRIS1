@@ -11,9 +11,8 @@ from dataclasses import dataclass
 from enum import Enum
 import json
 
-from models import Company, FinancialStatement, StatementType, ReportingPeriod
-from database.connection import get_db_client
 from config import settings
+from database.connection import get_db_client
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,11 @@ class RiskScoringAgent:
     """Agent 3: Risk scoring with 6-category weighted composite"""
 
     def __init__(self):
-        self.db_client = get_db_client()
+        try:
+            self.db_client = get_db_client()
+        except Exception:
+            # For standalone analysis without database
+            self.db_client = None
         logger.info("Risk Scoring Agent initialized")
 
     def calculate_risk_score(self, company_symbol: str, forensic_data: Dict[str, Any]) -> CompositeRiskAssessment:

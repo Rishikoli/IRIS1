@@ -37,9 +37,16 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Allow common local dev origins explicitly and also via regex
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=(settings.cors_origins_list + [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:45505",
+        "http://127.0.0.1:45505",
+    ]),
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,7 +54,10 @@ app.add_middleware(
 
 # Include API routes
 app.include_router(companies.router)
-app.include_router(forensic.router)
+app.include_router(forensic.ingestion_router)
+app.include_router(forensic.forensic_router)
+app.include_router(forensic.risk_router)
+app.include_router(forensic.companies_router)
 app.include_router(auth_router)
 app.include_router(realtime.router)
 
@@ -81,6 +91,38 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
+
+# Companies list endpoint for CLI
+@app.get("/api/companies")
+async def list_companies():
+    """List companies available for analysis"""
+    try:
+        # For now, return a list of commonly analyzed Indian companies
+        companies = [
+            {"symbol": "RELIANCE.BO", "name": "Reliance Industries Limited", "sector": "Conglomerate"},
+            {"symbol": "TCS.BO", "name": "Tata Consultancy Services Limited", "sector": "IT Services"},
+            {"symbol": "HDFCBANK.BO", "name": "HDFC Bank Limited", "sector": "Banking"},
+            {"symbol": "ICICIBANK.BO", "name": "ICICI Bank Limited", "sector": "Banking"},
+            {"symbol": "INFY.BO", "name": "Infosys Limited", "sector": "IT Services"},
+            {"symbol": "HINDUNILVR.BO", "name": "Hindustan Unilever Limited", "sector": "Consumer Goods"},
+            {"symbol": "ITC.BO", "name": "ITC Limited", "sector": "Consumer Goods"},
+            {"symbol": "KOTAKBANK.BO", "name": "Kotak Mahindra Bank Limited", "sector": "Banking"},
+            {"symbol": "LT.BO", "name": "Larsen & Toubro Limited", "sector": "Engineering"},
+            {"symbol": "AXISBANK.BO", "name": "Axis Bank Limited", "sector": "Banking"}
+        ]
+
+        return {
+            "success": True,
+            "companies": companies,
+            "count": len(companies)
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing companies: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn

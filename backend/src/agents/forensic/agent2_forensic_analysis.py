@@ -14,8 +14,8 @@ from datetime import datetime
 from scipy import stats
 import math
 
-from src.config import settings
-from src.database.connection import get_db_client
+from config import settings
+from database.connection import get_db_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,11 @@ class ForensicAnalysisAgent:
     """Agent 2: Forensic analysis with statistical tests and financial ratios"""
 
     def __init__(self):
-        self.db_client = get_db_client()
+        try:
+            self.db_client = get_db_client()
+        except Exception:
+            # For standalone analysis without database
+            self.db_client = None
         
     def analyze_yahoo_finance_data(self, symbol: str, quarters: int = 3) -> Dict[str, Any]:
         """Analyze real Yahoo Finance data with enhanced field mapping and pandas NaN detection"""
@@ -50,70 +54,54 @@ class ForensicAnalysisAgent:
             yahoo_to_agent_mapping = {
                 'income_statement': {
                     # Revenue fields
-                    'TotalRevenue': 'total_revenue',
                     'Total Revenue': 'total_revenue',
+                    'TotalRevenue': 'total_revenue',
 
                     # Profit fields
-                    'NetIncome': 'net_profit',
                     'Net Income': 'net_profit',
-                    'Net Income From Continuing Operation Net Minority Interest': 'net_profit',
+                    'NetIncome': 'net_profit',
                     'Net Income From Continuing And Discontinued Operation': 'net_profit',
 
                     # Cost fields
-                    'CostOfRevenue': 'cost_of_revenue',
                     'Cost Of Revenue': 'cost_of_revenue',
-                    'Reconciled Cost Of Revenue': 'cost_of_revenue',
+                    'CostOfRevenue': 'cost_of_revenue',
 
                     # Additional profit metrics
-                    'GrossProfit': 'gross_profit',
                     'Gross Profit': 'gross_profit',
-                    'OperatingIncome': 'operating_income',
+                    'GrossProfit': 'gross_profit',
                     'Operating Income': 'operating_income',
+                    'OperatingIncome': 'operating_income',
                     'EBITDA': 'ebitda',
                     'EBIT': 'ebit',
 
                     # Expense fields
-                    'InterestExpense': 'interest_expense',
                     'Interest Expense': 'interest_expense',
-                    'IncomeTaxExpense': 'tax_expense',
+                    'InterestExpense': 'interest_expense',
+                    'Income Tax Expense': 'tax_expense',
                     'Tax Expense': 'tax_expense',
                 },
                 'balance_sheet': {
                     # Asset fields
-                    'TotalAssets': 'total_assets',
                     'Total Assets': 'total_assets',
+                    'TotalAssets': 'total_assets',
 
                     # Liability fields
-                    'TotalLiabilitiesNetMinorityInterest': 'total_liabilities',
                     'Total Liabilities Net Minority Interest': 'total_liabilities',
-                    'TotalLiabilities': 'total_liabilities',
-                    'Total Liabilities': 'total_liabilities',
+                    'TotalLiabilitiesNetMinorityInterest': 'total_liabilities',
 
                     # Equity fields
-                    'StockholdersEquity': 'total_equity',
                     'Stockholders Equity': 'total_equity',
-                    'TotalEquityGrossMinorityInterest': 'total_equity',
-                    'Total Equity Gross Minority Interest': 'total_equity',
+                    'StockholdersEquity': 'total_equity',
 
                     # Current fields
-                    'CurrentAssets': 'current_assets',
                     'Current Assets': 'current_assets',
-                    'CurrentLiabilities': 'current_liabilities',
+                    'CurrentAssets': 'current_assets',
                     'Current Liabilities': 'current_liabilities',
+                    'CurrentLiabilities': 'current_liabilities',
 
                     # Cash fields
-                    'CashAndCashEquivalents': 'cash_and_equivalents',
                     'Cash And Cash Equivalents': 'cash_and_equivalents',
-                    'CashFinancial': 'cash_and_equivalents',
-                    'Cash Financial': 'cash_and_equivalents',
-
-                    # Additional asset fields
-                    'AccountsReceivable': 'accounts_receivable',
-                    'Accounts Receivable': 'accounts_receivable',
-                    'Inventory': 'inventory',
-                    'Inventories': 'inventory',
-                    'PropertyPlantEquipment': 'property_plant_equipment',
-                    'Property Plant Equipment': 'property_plant_equipment',
+                    'CashAndCashEquivalents': 'cash_and_equivalents',
                 }
             }
 
@@ -235,31 +223,76 @@ class ForensicAnalysisAgent:
     
     def _vertical_income_statement(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Vertical analysis for income statement (% of revenue)"""
-        total_revenue = data.get("total_revenue", 0)
+        # Handle both raw Yahoo Finance data and normalized data
+        total_revenue = (
+            data.get("total_revenue") or
+            data.get("Total Revenue") or
+            data.get("totalRevenue") or
+            0
+        )
+
         if not total_revenue:
             return {"error": "No total revenue found"}
-            
+
+        # Calculate percentages using both possible field names
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
+        cost_of_revenue = get_field_value(["cost_of_revenue", "Cost Of Revenue", "CostOfRevenue"], data)
+        gross_profit = get_field_value(["gross_profit", "Gross Profit", "GrossProfit"], data)
+        operating_income = get_field_value(["operating_income", "Operating Income", "OperatingIncome"], data)
+        net_profit = get_field_value(["net_profit", "Net Income", "NetIncome"], data)
+        interest_expense = get_field_value(["interest_expense", "Interest Expense", "InterestExpense"], data)
+        tax_expense = get_field_value(["tax_expense", "Income Tax Expense", "Tax Expense", "TaxExpense"], data)
+
         return {
-            "cost_of_revenue_pct": (data.get("cost_of_revenue", 0) / total_revenue) * 100,
-            "gross_profit_pct": (data.get("gross_profit", 0) / total_revenue) * 100,
-            "operating_income_pct": (data.get("operating_income", 0) / total_revenue) * 100,
-            "net_profit_pct": (data.get("net_profit", 0) / total_revenue) * 100,
-            "interest_expense_pct": (data.get("interest_expense", 0) / total_revenue) * 100,
-            "tax_expense_pct": (data.get("tax_expense", 0) / total_revenue) * 100
+            "cost_of_revenue_pct": (cost_of_revenue / total_revenue) * 100,
+            "gross_profit_pct": (gross_profit / total_revenue) * 100,
+            "operating_income_pct": (operating_income / total_revenue) * 100,
+            "net_profit_pct": (net_profit / total_revenue) * 100,
+            "interest_expense_pct": (interest_expense / total_revenue) * 100,
+            "tax_expense_pct": (tax_expense / total_revenue) * 100
         }
     
     def _vertical_balance_sheet(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Vertical analysis for balance sheet (% of total assets)"""
-        total_assets = data.get("total_assets", 0)
+        # Handle both raw Yahoo Finance data and normalized data
+        total_assets = (
+            data.get("total_assets") or
+            data.get("Total Assets") or
+            data.get("totalAssets") or
+            0
+        )
+
         if not total_assets:
             return {"error": "No total assets found"}
-            
+
+        # Calculate percentages using both possible field names
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
+        current_assets = get_field_value(["current_assets", "Current Assets", "CurrentAssets"], data)
+        current_liabilities = get_field_value(["current_liabilities", "Current Liabilities", "CurrentLiabilities"], data)
+        total_equity = get_field_value(["total_equity", "Stockholders Equity", "StockholdersEquity", "Total Equity Gross Minority Interest"], data)
+
         return {
-            "current_assets_pct": (data.get("current_assets", 0) / total_assets) * 100,
-            "non_current_assets_pct": (data.get("non_current_assets", 0) / total_assets) * 100,
-            "current_liabilities_pct": (data.get("current_liabilities", 0) / total_assets) * 100,
-            "non_current_liabilities_pct": (data.get("non_current_liabilities", 0) / total_assets) * 100,
-            "total_equity_pct": (data.get("total_equity", 0) / total_assets) * 100
+            "current_assets_pct": (current_assets / total_assets) * 100,
+            "non_current_assets_pct": ((total_assets - current_assets) / total_assets) * 100,
+            "current_liabilities_pct": (current_liabilities / total_assets) * 100,
+            "non_current_liabilities_pct": ((data.get("total_liabilities", 0) - current_liabilities) / total_assets) * 100,
+            "total_equity_pct": (total_equity / total_assets) * 100
         }
     
     def horizontal_analysis(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -311,22 +344,37 @@ class ForensicAnalysisAgent:
     def _calculate_growth_rates(self, previous: Dict[str, Any], current: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate growth rates between two periods"""
         growth_rates = {}
-        
+
+        # Handle both raw Yahoo Finance data and normalized data
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
         key_metrics = [
-            "total_revenue", "gross_profit", "operating_income", "net_profit",
-            "total_assets", "total_liabilities", "total_equity"
+            (["total_revenue", "Total Revenue", "totalRevenue"], "total_revenue"),
+            (["gross_profit", "Gross Profit", "GrossProfit"], "gross_profit"),
+            (["operating_income", "Operating Income", "OperatingIncome"], "operating_income"),
+            (["net_profit", "Net Income", "NetIncome"], "net_profit"),
+            (["total_assets", "Total Assets", "totalAssets"], "total_assets"),
+            (["total_liabilities", "Total Liabilities Net Minority Interest", "TotalLiabilitiesNetMinorityInterest"], "total_liabilities"),
+            (["total_equity", "Stockholders Equity", "StockholdersEquity"], "total_equity")
         ]
-        
-        for metric in key_metrics:
-            prev_value = previous.get(metric, 0)
-            curr_value = current.get(metric, 0)
-            
+
+        for field_names, metric_name in key_metrics:
+            prev_value = get_field_value(field_names, previous)
+            curr_value = get_field_value(field_names, current)
+
             if prev_value != 0:
                 growth_rate = ((curr_value - prev_value) / prev_value) * 100
-                growth_rates[f"{metric}_growth_pct"] = round(growth_rate, 2)
+                growth_rates[f"{metric_name}_growth_pct"] = round(growth_rate, 2)
             else:
-                growth_rates[f"{metric}_growth_pct"] = None
-                
+                growth_rates[f"{metric_name}_growth_pct"] = None
+
         return growth_rates
     
     def calculate_financial_ratios(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -417,11 +465,21 @@ class ForensicAnalysisAgent:
     
     def _calculate_profitability_ratios(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate comprehensive profitability ratios"""
-        total_revenue = data.get("total_revenue", 0)
-        gross_profit = data.get("gross_profit", 0)
-        operating_income = data.get("operating_income", 0)
-        net_profit = data.get("net_profit", 0)
-        ebitda = data.get("ebitda", 0)
+        # Handle both raw Yahoo Finance data and normalized data
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
+        total_revenue = get_field_value(["total_revenue", "Total Revenue", "totalRevenue"], data)
+        gross_profit = get_field_value(["gross_profit", "Gross Profit", "GrossProfit"], data)
+        operating_income = get_field_value(["operating_income", "Operating Income", "OperatingIncome"], data)
+        net_profit = get_field_value(["net_profit", "Net Income", "NetIncome"], data)
+        ebitda = get_field_value(["ebitda", "EBITDA"], data)
 
         ratios = {}
 
@@ -441,15 +499,22 @@ class ForensicAnalysisAgent:
         if total_revenue != 0:
             ratios["ebitda_margin_pct"] = round((ebitda / total_revenue) * 100, 2)
 
-        # Note: ROE and ROA need balance sheet data, so they're calculated in the main function
-        # when we have both income statement and balance sheet data
-
         return ratios
     def _calculate_leverage_ratios(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate leverage ratios"""
-        total_debt = data.get("total_liabilities", 0)
-        total_equity = data.get("total_equity", 0)
-        total_assets = data.get("total_assets", 0)
+        # Handle both raw Yahoo Finance data and normalized data
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
+        total_debt = get_field_value(["total_liabilities", "Total Liabilities Net Minority Interest", "TotalLiabilitiesNetMinorityInterest"], data)
+        total_equity = get_field_value(["total_equity", "Stockholders Equity", "StockholdersEquity"], data)
+        total_assets = get_field_value(["total_assets", "Total Assets", "totalAssets"], data)
 
         ratios = {}
 
@@ -461,22 +526,30 @@ class ForensicAnalysisAgent:
         if total_assets != 0:
             ratios["debt_to_assets"] = round(total_debt / total_assets, 2)
 
-        # Note: Interest coverage needs income statement data, so it's calculated in the main function
-
         return ratios
     
 
     def _calculate_efficiency_ratios(self, balance_sheet: Dict[str, Any], 
                                    income_statement: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate comprehensive efficiency ratios"""
-        total_revenue = income_statement.get("total_revenue", 0)
-        total_assets = balance_sheet.get("total_assets", 0)
-        accounts_receivable = balance_sheet.get("accounts_receivable", 0)
-        inventory = balance_sheet.get("inventory", 0)
-        cost_of_goods_sold = income_statement.get("cost_of_goods_sold", 0)
-        current_assets = balance_sheet.get("current_assets", 0)
-        current_liabilities = balance_sheet.get("current_liabilities", 0)
-        fixed_assets = balance_sheet.get("property_plant_equipment", 0)
+        # Handle both raw Yahoo Finance data and normalized data
+        def get_field_value(field_names, data):
+            for name in field_names:
+                if name in data and data[name] is not None and not pd.isna(data[name]):
+                    try:
+                        return float(data[name])
+                    except (ValueError, TypeError):
+                        continue
+            return 0
+
+        total_revenue = get_field_value(["total_revenue", "Total Revenue", "totalRevenue"], income_statement)
+        total_assets = get_field_value(["total_assets", "Total Assets", "totalAssets"], balance_sheet)
+        accounts_receivable = get_field_value(["accounts_receivable", "Accounts Receivable"], balance_sheet)
+        inventory = get_field_value(["inventory", "Inventory", "Inventories"], balance_sheet)
+        cost_of_goods_sold = get_field_value(["cost_of_goods_sold", "Cost Of Revenue", "CostOfRevenue"], income_statement)
+        current_assets = get_field_value(["current_assets", "Current Assets", "CurrentAssets"], balance_sheet)
+        current_liabilities = get_field_value(["current_liabilities", "Current Liabilities", "CurrentLiabilities"], balance_sheet)
+        fixed_assets = get_field_value(["property_plant_equipment", "Property Plant Equipment", "PropertyPlantEquipment"], balance_sheet)
 
         ratios = {}
 
@@ -806,6 +879,18 @@ class ForensicAnalysisAgent:
             logger.error(f"Beneish M-Score calculation failed: {e}")
             return {"success": False, "error": str(e)}
     
+    def _to_float(self, v: Any) -> float:
+        """Safely convert numbers (including Decimal) to float. Returns 0.0 on failure."""
+        try:
+            if v is None:
+                return 0.0
+            return float(v)
+        except Exception:
+            try:
+                return float(str(v))
+            except Exception:
+                return 0.0
+
     def detect_anomalies(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Detect financial anomalies using rule-based checks"""
         try:

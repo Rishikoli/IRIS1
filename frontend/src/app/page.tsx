@@ -141,7 +141,7 @@ export default function Home() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       ),
-      title: "Premium Cards",
+      title: "Risk Assessment",
       description: "Unlock exclusive rewards and benefits with our premium card offerings. Cashback, travel perks, and more.",
       features: ["Up to 5% cashback", "Travel insurance included", "No foreign fees"],
       buttonText: "Get Premium Card",
@@ -263,18 +263,18 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Smart Banking</h3>
+                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Forensic Analysis</h3>
                 <p className="leading-relaxed text-center mb-6" style={{ color: '#666' }}>
-                  Experience next-generation banking with AI-powered insights, instant transfers, and intelligent budgeting tools.
+                Comprehensive financial statement analysis including vertical, horizontal, and ratio analysis.
                 </p>
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center text-sm" style={{ color: '#666' }}>
                     <div className="w-2 h-2 rounded-full mr-3 neumorphic-dot" style={{ background: '#4ade80', boxShadow: 'inset 1px 1px 2px #3bb370, inset -1px -1px 2px #61eb90' }}></div>
-                    Zero-fee transactions
+                    Vertical analysis
                   </div>
                   <div className="flex items-center text-sm" style={{ color: '#666' }}>
                     <div className="w-2 h-2 rounded-full mr-3 neumorphic-dot" style={{ background: '#4ade80', boxShadow: 'inset 1px 1px 2px #3bb370, inset -1px -1px 2px #61eb90' }}></div>
-                    Real-time notifications
+                    Horizontal analysis
                   </div>
                   <div className="flex items-center text-sm" style={{ color: '#666' }}>
                     <div className="w-2 h-2 rounded-full mr-3 neumorphic-dot" style={{ background: '#4ade80', boxShadow: 'inset 1px 1px 2px #3bb370, inset -1px -1px 2px #61eb90' }}></div>
@@ -293,9 +293,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Investment Platform</h3>
+                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Anomaly Detection</h3>
                 <p className="leading-relaxed text-center mb-6" style={{ color: '#666' }}>
-                  Build wealth with our automated investment platform. Diversify across stocks, crypto, and retirement accounts.
+                  Advanced algorithms to detect irregularities and potential financial manipulation
                 </p>
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center text-sm" style={{ color: '#666' }}>
@@ -323,10 +323,9 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Premium Cards</h3>
+                <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#333' }}>Risk Assessment</h3>
                 <p className="leading-relaxed text-center mb-6" style={{ color: '#666' }}>
-                  Unlock exclusive rewards and benefits with our premium card offerings. Cashback, travel perks, and more.
-                </p>
+                Multi-factor risk scoring with confidence levels and detailed risk factor analysis.                </p>
                 <div className="space-y-4 mb-8">
                   <div className="flex items-center text-sm" style={{ color: '#666' }}>
                     <div className="w-2 h-2 rounded-full mr-3 neumorphic-dot" style={{ background: '#4ade80', boxShadow: 'inset 1px 1px 2px #3bb370, inset -1px -1px 2px #61eb90' }}></div>
@@ -342,7 +341,7 @@ export default function Home() {
                   </div>
                 </div>
                 <button className="w-full py-4 rounded-xl font-semibold text-white transition-all neumorphic-button" style={{ background: 'linear-gradient(135deg, #FF6B9D 0%, #FF4081 100%)', boxShadow: '8px 8px 16px #e85a8a, -8px -8px 16px #ff7cb0' }}>
-                  Get Premium Card
+                Risk Assessment
                 </button>
               </div>
             </div>

@@ -416,54 +416,54 @@ class DataIngestionAgent:
             yahoo_to_agent_mapping = {
                 'income_statement': {
                     # Revenue fields
-                    'TotalRevenue': 'total_revenue',
                     'Total Revenue': 'total_revenue',
+                    'TotalRevenue': 'total_revenue',
 
                     # Profit fields
-                    'NetIncome': 'net_profit',
                     'Net Income': 'net_profit',
-                    'Net Income From Continuing Operation Net Minority Interest': 'net_profit',
+                    'NetIncome': 'net_profit',
+                    'Net Income From Continuing And Discontinued Operation': 'net_profit',
 
                     # Cost fields
-                    'CostOfRevenue': 'cost_of_revenue',
                     'Cost Of Revenue': 'cost_of_revenue',
+                    'CostOfRevenue': 'cost_of_revenue',
 
                     # Additional profit metrics
-                    'GrossProfit': 'gross_profit',
                     'Gross Profit': 'gross_profit',
-                    'OperatingIncome': 'operating_income',
+                    'GrossProfit': 'gross_profit',
                     'Operating Income': 'operating_income',
+                    'OperatingIncome': 'operating_income',
                     'EBITDA': 'ebitda',
                     'EBIT': 'ebit',
 
                     # Expense fields
-                    'InterestExpense': 'interest_expense',
                     'Interest Expense': 'interest_expense',
-                    'IncomeTaxExpense': 'tax_expense',
+                    'InterestExpense': 'interest_expense',
+                    'Income Tax Expense': 'tax_expense',
                     'Tax Expense': 'tax_expense',
                 },
                 'balance_sheet': {
                     # Asset fields
-                    'TotalAssets': 'total_assets',
                     'Total Assets': 'total_assets',
+                    'TotalAssets': 'total_assets',
 
                     # Liability fields
-                    'TotalLiabilitiesNetMinorityInterest': 'total_liabilities',
                     'Total Liabilities Net Minority Interest': 'total_liabilities',
+                    'TotalLiabilitiesNetMinorityInterest': 'total_liabilities',
 
                     # Equity fields
-                    'StockholdersEquity': 'total_equity',
                     'Stockholders Equity': 'total_equity',
+                    'StockholdersEquity': 'total_equity',
 
                     # Current fields
-                    'CurrentAssets': 'current_assets',
                     'Current Assets': 'current_assets',
-                    'CurrentLiabilities': 'current_liabilities',
+                    'CurrentAssets': 'current_assets',
                     'Current Liabilities': 'current_liabilities',
+                    'CurrentLiabilities': 'current_liabilities',
 
                     # Cash fields
-                    'CashAndCashEquivalents': 'cash_and_equivalents',
                     'Cash And Cash Equivalents': 'cash_and_equivalents',
+                    'CashAndCashEquivalents': 'cash_and_equivalents',
                 }
             }
 
