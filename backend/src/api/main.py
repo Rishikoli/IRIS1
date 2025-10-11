@@ -4,8 +4,18 @@ Financial Forensics Analysis Platform
 """
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
- 
+
+# Add backend root directory to Python path
+# This file is at: backend/src/api/main.py
+# We need to add: backend/ to the path
+current_file = os.path.abspath(__file__)
+api_dir = os.path.dirname(current_file)  # backend/src/api
+src_dir = os.path.dirname(api_dir)  # backend/src
+backend_root = os.path.dirname(src_dir)  # backend
+
+# Insert at the beginning to prioritize our modules
+sys.path.insert(0, backend_root)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging

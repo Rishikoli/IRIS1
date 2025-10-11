@@ -13,9 +13,9 @@ from pathlib import Path
 import time
 import hashlib
 
-from api_clients import NSEClient, BSEClient
-from utils.ocr_processor import OCRProcessor
-from config import settings
+from src.api_clients import NSEClient, BSEClient
+from src.utils.ocr_processor import OCRProcessor
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 import json
 
-from config import settings
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 

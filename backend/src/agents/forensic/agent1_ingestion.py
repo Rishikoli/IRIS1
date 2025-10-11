@@ -16,12 +16,12 @@ import os
 import tempfile
 from pathlib import Path
 
-from api_clients import FMPAPIClient, NSEClient, BSEClient
-from models import Company, FinancialStatement, StatementType, ReportingPeriod
-from database.connection import get_db_client
-from config import settings
-from utils.ocr_processor import OCRProcessor
-from utils.document_scraper import DocumentScraper
+from src.api_clients import FMPAPIClient, NSEClient, BSEClient
+from src.models import Company, FinancialStatement, StatementType, ReportingPeriod
+from src.database.connection import get_db_client
+from src.config import settings
+from src.utils.ocr_processor import OCRProcessor
+from src.utils.document_scraper import DocumentScraper
 
 logger = logging.getLogger(__name__)
 

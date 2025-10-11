@@ -4,7 +4,7 @@ Background task processing for forensic analysis
 """
 
 from celery import Celery
-from config import settings
+from src.config import settings
 
 # Create Celery app
 celery_app = Celery(

@@ -29,6 +29,9 @@ interface RiskScore {
     confidence_score: number
     risk_factors: string[]
     analysis_timestamp: string
+    investment_recommendation?: string
+    monitoring_frequency?: string
+    category_scores?: any
   }
 }
 
@@ -68,14 +71,36 @@ export default function IRISDashboard() {
       const analysisData = await analysisResponse.json()
       setAnalysisResult(analysisData)
 
-      // Get risk score (proxy via Next.js rewrite)
-      const riskResponse = await fetch(`/api/risk-score/${companySymbol}`, {
-        method: 'POST',
-      })
+      // Check if risk data is already in the forensic analysis response
+      if (analysisData.risk_assessment) {
+        setRiskScore({
+          success: true,
+          company_id: companySymbol,
+          risk_score: {
+            overall_score: analysisData.risk_assessment.overall_risk_score || 45,
+            risk_level: analysisData.risk_assessment.risk_level || 'MEDIUM',
+            confidence_score: analysisData.risk_assessment.confidence_score || 0.8,
+            risk_factors: analysisData.risk_assessment.risk_factors || [],
+            analysis_timestamp: analysisData.analysis_timestamp,
+            investment_recommendation: analysisData.risk_assessment.investment_recommendation,
+            monitoring_frequency: analysisData.risk_assessment.monitoring_frequency,
+            category_scores: analysisData.risk_assessment.category_scores
+          }
+        })
+      } else {
+        // Get risk score (proxy via Next.js rewrite) - fallback if not in forensic response
+        try {
+          const riskResponse = await fetch(`/api/risk-score/${companySymbol}`, {
+            method: 'POST',
+          })
 
-      if (riskResponse.ok) {
-        const riskData = await riskResponse.json()
-        setRiskScore(riskData)
+          if (riskResponse.ok) {
+            const riskData = await riskResponse.json()
+            setRiskScore(riskData)
+          }
+        } catch (error) {
+          console.warn('Could not fetch separate risk score:', error)
+        }
       }
 
       setActiveTab('results')

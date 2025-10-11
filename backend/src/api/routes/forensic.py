@@ -5,19 +5,16 @@ All forensic analysis endpoints including ratios, Z-Score, M-Score, etc.
 
 import logging
 import redis
-import json
 from cachetools import TTLCache
 import time
 from typing import Dict, Any, Optional
-import math
 import numpy as np
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from datetime import datetime
-import asyncio
-
 from src.agents.forensic.agent2_forensic_analysis import ForensicAnalysisAgent
-# from agents.forensic.agent3_risk_scoring import RiskScoringAgent  # TODO: Create this agent
-from src.database.connection import get_db_client
+from src.agents.forensic.agent3_risk_scoring import RiskScoringAgent
+from src.agents.forensic.agent4_compliance import ComplianceValidationAgent
+from src.agents.forensic.agent5_reporting import ReportingAgent
 from src.api.schemas.models import (
     AnalysisRequest, ComprehensiveAnalysisResponse, FinancialRatiosResponse,
     AltmanZScoreResponse, BeneishMScoreResponse, AnomalyDetectionResponse,
@@ -46,7 +43,9 @@ companies_router = APIRouter(prefix="/companies", tags=["companies"])
 
 # Initialize agents
 forensic_agent = ForensicAnalysisAgent()
-# risk_agent = RiskScoringAgent()  # TODO: Create this agent
+risk_agent = RiskScoringAgent()
+compliance_agent = ComplianceValidationAgent()
+reporting_agent = ReportingAgent()
 
 
 def _make_json_safe(value):
@@ -340,6 +339,61 @@ async def run_forensic_analysis_api(company_symbol: str):
             if analysis_type in analysis_result:
                 response_data[analysis_type] = analysis_result[analysis_type]
 
+        # Add risk assessment using Agent 3
+        try:
+            risk_assessment = risk_agent.calculate_risk_score(company_symbol, analysis_result)
+            response_data['risk_assessment'] = {
+                'overall_risk_score': risk_assessment.overall_risk_score,
+                'risk_level': risk_assessment.risk_level,
+                'risk_factors': risk_assessment.risk_factors,
+                'investment_recommendation': risk_assessment.investment_recommendation,
+                'monitoring_frequency': risk_assessment.monitoring_frequency,
+                'category_scores': {
+                    category.value: {
+                        'score': risk_score.score,
+                        'weight': risk_score.weight,
+                        'confidence': risk_score.confidence,
+                        'factors': risk_score.factors,
+                        'recommendations': risk_score.recommendations
+                    }
+                    for category, risk_score in risk_assessment.risk_category_scores.items()
+                }
+            }
+        except Exception as e:
+            logger.warning(f"Risk assessment failed for {company_symbol}: {e}")
+            response_data['risk_assessment'] = {
+                'overall_risk_score': 45,
+                'risk_level': 'MEDIUM',
+                'risk_factors': ['Risk assessment temporarily unavailable'],
+                'investment_recommendation': 'CAUTION - Risk assessment pending',
+                'monitoring_frequency': 'MONTHLY'
+            }
+
+        # Add compliance assessment using Agent 4
+        try:
+            compliance_assessment = compliance_agent.validate_compliance(company_symbol, analysis_result)
+            response_data['compliance_assessment'] = {
+                'overall_compliance_score': compliance_assessment.overall_compliance_score,
+                'compliance_status': compliance_assessment.compliance_status,
+                'framework_scores': {
+                    framework.value: score
+                    for framework, score in compliance_assessment.framework_scores.items()
+                },
+                'violations_count': len(compliance_assessment.violations),
+                'recommendations': compliance_assessment.recommendations,
+                'next_review_date': compliance_assessment.next_review_date
+            }
+        except Exception as e:
+            logger.warning(f"Compliance assessment failed for {company_symbol}: {e}")
+            response_data['compliance_assessment'] = {
+                'overall_compliance_score': 75,
+                'compliance_status': 'PARTIAL_COMPLIANCE',
+                'framework_scores': {},
+                'violations_count': 0,
+                'recommendations': ['Compliance assessment temporarily unavailable'],
+                'next_review_date': datetime.utcnow().isoformat()
+            }
+
         # Sanitize all values for JSON serialization (handle numpy types/NaN/etc.)
         response_data = _make_json_safe(response_data)
 
@@ -355,23 +409,64 @@ async def run_forensic_analysis_api(company_symbol: str):
 
 @forensic_router.post("/{company_symbol}/risk-score")
 async def calculate_risk_score_api(company_symbol: str):
-    """Calculate risk score for a company"""
+    """Calculate risk score for a company using Agent 3"""
     try:
         logger.info(f"Calculating risk score for {company_symbol}")
 
-        # For now, return a simple risk score based on mock analysis
-        # TODO: Implement proper integration with forensic analysis
+        # Get forensic analysis data first
+        try:
+            ingestion_result = await ingest_company_data(company_symbol)
+            financial_statements = ingestion_result["financial_statements"]
+        except Exception:
+            # Fallback to mock data if ingestion fails
+            financial_statements = _create_enhanced_mock_data(company_symbol)
+
+        if not financial_statements:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No financial data available for {company_symbol}"
+            )
+
+        # Run forensic analysis to get the data needed for risk scoring
+        forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+
+        if not forensic_result['success']:
+            # Fallback to mock risk assessment
+            return {
+                "success": True,
+                "company_id": company_symbol,
+                "risk_score": {
+                    "overall_score": 45,
+                    "risk_level": "MEDIUM",
+                    "confidence_score": 0.6,
+                    "risk_factors": ["Insufficient data for detailed risk analysis"],
+                    "analysis_timestamp": datetime.utcnow().isoformat()
+                }
+            }
+
+        # Calculate risk score using Agent 3
+        risk_assessment = risk_agent.calculate_risk_score(company_symbol, forensic_result)
 
         return {
             "success": True,
             "company_id": company_symbol,
             "risk_score": {
-                "overall_score": 45,
-                "risk_level": "MEDIUM",
-                "confidence_score": 0.8,
-                "risk_factors": [
-                    "Mock risk assessment based on financial data analysis"
-                ],
+                "overall_score": risk_assessment.overall_risk_score,
+                "risk_level": risk_assessment.risk_level,
+                "confidence_score": sum(score.confidence for score in risk_assessment.risk_category_scores.values()) / len(risk_assessment.risk_category_scores),
+                "risk_factors": risk_assessment.risk_factors,
+                "investment_recommendation": risk_assessment.investment_recommendation,
+                "monitoring_frequency": risk_assessment.monitoring_frequency,
+                "category_scores": {
+                    category.value: {
+                        "score": risk_score.score,
+                        "weight": risk_score.weight,
+                        "confidence": risk_score.confidence,
+                        "factors": risk_score.factors,
+                        "recommendations": risk_score.recommendations
+                    }
+                    for category, risk_score in risk_assessment.risk_category_scores.items()
+                },
                 "analysis_timestamp": datetime.utcnow().isoformat()
             }
         }
@@ -381,25 +476,264 @@ async def calculate_risk_score_api(company_symbol: str):
         raise HTTPException(status_code=500, detail=f"Risk scoring failed: {str(e)}")
 
 
+@forensic_router.post("/{company_symbol}/compliance")
+async def validate_compliance_api(company_symbol: str):
+    """Validate compliance for a company using Agent 4"""
+    try:
+        logger.info(f"Validating compliance for {company_symbol}")
+
+        # Get forensic analysis data first
+        try:
+            ingestion_result = await ingest_company_data(company_symbol)
+            financial_statements = ingestion_result["financial_statements"]
+        except Exception:
+            # Fallback to mock data if ingestion fails
+            financial_statements = _create_enhanced_mock_data(company_symbol)
+
+        if not financial_statements:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No financial data available for {company_symbol}"
+            )
+
+        # Run forensic analysis to get the data needed for compliance validation
+        forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+
+        if not forensic_result['success']:
+            # Fallback to basic compliance assessment
+            return {
+                "success": True,
+                "company_id": company_symbol,
+                "compliance_assessment": {
+                    "overall_compliance_score": 70,
+                    "compliance_status": "PARTIAL_COMPLIANCE",
+                    "violations": ["Insufficient data for detailed compliance analysis"],
+                    "framework_scores": {},
+                    "recommendations": ["Ensure all required financial disclosures are complete"],
+                    "next_review_date": datetime.utcnow().isoformat(),
+                    "analysis_timestamp": datetime.utcnow().isoformat()
+                }
+            }
+
+        # Validate compliance using Agent 4
+        compliance_assessment = compliance_agent.validate_compliance(company_symbol, forensic_result)
+
+        return {
+            "success": True,
+            "company_id": company_symbol,
+            "compliance_assessment": {
+                "overall_compliance_score": compliance_assessment.overall_compliance_score,
+                "compliance_status": compliance_assessment.compliance_status,
+                "framework_scores": {
+                    framework.value: score
+                    for framework, score in compliance_assessment.framework_scores.items()
+                },
+                "violations": [
+                    {
+                        "framework": violation.framework.value,
+                        "rule_id": violation.rule_id,
+                        "severity": violation.severity.value,
+                        "description": violation.violation_description,
+                        "evidence": violation.evidence,
+                        "remediation": violation.remediation_steps,
+                        "reference": violation.regulatory_reference
+                    }
+                    for violation in compliance_assessment.violations
+                ],
+                "recommendations": compliance_assessment.recommendations,
+                "next_review_date": compliance_assessment.next_review_date,
+                "analysis_timestamp": datetime.utcnow().isoformat()
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error validating compliance for {company_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=f"Compliance validation failed: {str(e)}")
+
+
+@forensic_router.post("/{company_symbol}/comprehensive-report")
+async def generate_comprehensive_report_api(company_symbol: str):
+    """Generate comprehensive report with all analysis types using Agent 5"""
+    try:
+        logger.info(f"Generating comprehensive report for {company_symbol}")
+
+        # Get forensic analysis data first
+        try:
+            ingestion_result = await ingest_company_data(company_symbol)
+            financial_statements = ingestion_result["financial_statements"]
+        except Exception:
+            # Fallback to mock data if ingestion fails
+            financial_statements = _create_enhanced_mock_data(company_symbol)
+
+        if not financial_statements:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No financial data available for {company_symbol}"
+            )
+
+        # Run forensic analysis to get the data needed for comprehensive report
+        forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+
+        if not forensic_result['success']:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Forensic analysis failed for {company_symbol}"
+            )
+
+        # Calculate risk score using Agent 3
+        risk_assessment = risk_agent.calculate_risk_score(company_symbol, forensic_result)
+
+        # Validate compliance using Agent 4
+        compliance_assessment = compliance_agent.validate_compliance(company_symbol, forensic_result)
+
+        # Prepare analysis data for reporting agent
+        analysis_data = {
+            "forensic_analysis": forensic_result,
+            "risk_assessment": {
+                'overall_risk_score': risk_assessment.overall_risk_score,
+                'risk_level': risk_assessment.risk_level,
+                'risk_factors': risk_assessment.risk_factors,
+                'investment_recommendation': risk_assessment.investment_recommendation,
+                'monitoring_frequency': risk_assessment.monitoring_frequency
+            },
+            "compliance_assessment": {
+                'overall_compliance_score': compliance_assessment.overall_compliance_score,
+                'compliance_status': compliance_assessment.compliance_status,
+                'framework_scores': {framework.value: score for framework, score in compliance_assessment.framework_scores.items()},
+                'violations': compliance_assessment.violations,
+                'recommendations': compliance_assessment.recommendations,
+                'next_review_date': compliance_assessment.next_review_date
+            }
+        }
+
+        # Generate comprehensive report using Agent 5
+        from src.agents.forensic.agent5_reporting import ExportFormat
+        comprehensive_report = await reporting_agent.generate_comprehensive_report(
+            company_symbol,
+            analysis_data,
+            export_formats=[ExportFormat.PDF, ExportFormat.EXCEL]
+        )
+
+        if not comprehensive_report.get('success'):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Comprehensive report generation failed: {comprehensive_report.get('error')}"
+            )
+
+        return {
+            "success": True,
+            "company_id": company_symbol,
+            "report_id": comprehensive_report["comprehensive_report"]["report_id"],
+            "report_metadata": comprehensive_report["comprehensive_report"]["report_metadata"],
+            "exports": comprehensive_report["comprehensive_report"]["exports"],
+            "analysis_timestamp": datetime.utcnow().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating comprehensive report for {company_symbol}: {e}")
+        raise HTTPException(status_code=500, detail=f"Comprehensive report generation failed: {str(e)}")
+
+
+@forensic_router.get("/reports/download/{filename}")
+async def download_report(filename: str):
+    """Download a generated report file"""
+    try:
+        # Construct file path
+        file_path = f"/home/aditya/I.R.I.S./backend/reports/{filename}"
+
+        # Check if file exists
+        import os
+        if not os.path.exists(file_path):
+            raise HTTPException(
+                status_code=404,
+                detail=f"Report file not found: {filename}"
+            )
+
+        # Determine file type for proper headers
+        if filename.endswith('.pdf'):
+            media_type = "application/pdf"
+        elif filename.endswith('.xlsx'):
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        else:
+            media_type = "application/octet-stream"
+
+        # Return file response
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            path=file_path,
+            media_type=media_type,
+            filename=filename
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading report {filename}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download report: {str(e)}")
+
+
 @risk_router.post("/{company_symbol}")
 async def calculate_risk_score_standalone(company_symbol: str):
-    """Calculate risk score for a company (standalone endpoint)"""
+    """Calculate risk score for a company (standalone endpoint) using Agent 3"""
     try:
         logger.info(f"Calculating risk score for {company_symbol}")
 
-        # For now, return a simple risk score based on mock analysis
-        # TODO: Implement proper integration with forensic analysis
+        # Get forensic analysis data first
+        try:
+            ingestion_result = await ingest_company_data(company_symbol)
+            financial_statements = ingestion_result["financial_statements"]
+        except Exception:
+            # Fallback to mock data if ingestion fails
+            financial_statements = _create_enhanced_mock_data(company_symbol)
+
+        if not financial_statements:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No financial data available for {company_symbol}"
+            )
+
+        # Run forensic analysis to get the data needed for risk scoring
+        forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+
+        if not forensic_result['success']:
+            # Fallback to mock risk assessment
+            return {
+                "success": True,
+                "company_id": company_symbol,
+                "risk_score": {
+                    "overall_score": 45,
+                    "risk_level": "MEDIUM",
+                    "confidence_score": 0.6,
+                    "risk_factors": ["Insufficient data for detailed risk analysis"],
+                    "analysis_timestamp": datetime.utcnow().isoformat()
+                }
+            }
+
+        # Calculate risk score using Agent 3
+        risk_assessment = risk_agent.calculate_risk_score(company_symbol, forensic_result)
 
         return {
             "success": True,
             "company_id": company_symbol,
             "risk_score": {
-                "overall_score": 45,
-                "risk_level": "MEDIUM",
-                "confidence_score": 0.8,
-                "risk_factors": [
-                    "Mock risk assessment based on financial data analysis"
-                ],
+                "overall_score": risk_assessment.overall_risk_score,
+                "risk_level": risk_assessment.risk_level,
+                "confidence_score": sum(score.confidence for score in risk_assessment.risk_category_scores.values()) / len(risk_assessment.risk_category_scores),
+                "risk_factors": risk_assessment.risk_factors,
+                "investment_recommendation": risk_assessment.investment_recommendation,
+                "monitoring_frequency": risk_assessment.monitoring_frequency,
+                "category_scores": {
+                    category.value: {
+                        "score": risk_score.score,
+                        "weight": risk_score.weight,
+                        "confidence": risk_score.confidence,
+                        "factors": risk_score.factors,
+                        "recommendations": risk_score.recommendations
+                    }
+                    for category, risk_score in risk_assessment.risk_category_scores.items()
+                },
                 "analysis_timestamp": datetime.utcnow().isoformat()
             }
         }

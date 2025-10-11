@@ -12,6 +12,9 @@ interface RiskScore {
     confidence_score: number
     risk_factors: string[]
     analysis_timestamp: string
+    investment_recommendation?: string
+    monitoring_frequency?: string
+    category_scores?: any
   }
 }
 
@@ -49,7 +52,10 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
     )
   }
 
-  if (!riskScore && !analysisResult) {
+  const displayRiskScore = currentRiskScore || forensicRiskData
+  const riskFactors = currentRiskScore?.risk_factors || forensicRiskData?.risk_factors || []
+
+  if (!displayRiskScore) {
     return (
       <div className="text-center py-16">
         <FiShield className="w-16 h-16 text-slate-600 mx-auto mb-4" />
@@ -84,6 +90,9 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
   const currentRiskScore = riskScore?.risk_score
   const anomalies = analysisResult?.anomaly_detection?.anomalies || []
   const benfordAnomalous = analysisResult?.benford_analysis?.is_anomalous || false
+
+  // Also check if risk data is in analysisResult (from forensic analysis API)
+  const forensicRiskData = analysisResult?.risk_assessment
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -125,11 +134,11 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
               <h3 className="text-2xl font-semibold mb-6 text-center">Overall Risk Score</h3>
 
               <div className="text-center mb-6">
-                <div className={`inline-flex items-center space-x-3 px-6 py-3 rounded-xl border ${getRiskLevelColor(currentRiskScore?.risk_level || 'medium')}`}>
-                  {getRiskLevelIcon(currentRiskScore?.risk_level || 'medium')}
+                <div className={`inline-flex items-center space-x-3 px-6 py-3 rounded-xl border ${getRiskLevelColor(displayRiskScore?.risk_level || 'medium')}`}>
+                  {getRiskLevelIcon(displayRiskScore?.risk_level || 'medium')}
                   <div>
-                    <div className="text-3xl font-bold">{currentRiskScore?.overall_score || 45}</div>
-                    <div className="text-sm opacity-80">{currentRiskScore?.risk_level || 'MEDIUM'}</div>
+                    <div className="text-3xl font-bold">{displayRiskScore?.overall_score || 45}</div>
+                    <div className="text-sm opacity-80">{displayRiskScore?.risk_level || 'MEDIUM'}</div>
                   </div>
                 </div>
               </div>
@@ -139,19 +148,19 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-slate-400">Risk Level</span>
                   <span className="text-sm text-slate-400">
-                    {currentRiskScore?.confidence_score ? `${(currentRiskScore.confidence_score * 100).toFixed(0)}%` : '80%'} Confidence
+                    {displayRiskScore?.confidence_score ? `${(displayRiskScore.confidence_score * 100).toFixed(0)}%` : '80%'} Confidence
                   </span>
                 </div>
                 <div className="w-full bg-slate-700/50 rounded-full h-4">
                   <div
                     className={`h-4 rounded-full transition-all duration-1000 ${
-                      currentRiskScore?.overall_score >= 80 ? 'bg-red-500' :
-                      currentRiskScore?.overall_score >= 60 ? 'bg-orange-500' :
-                      currentRiskScore?.overall_score >= 40 ? 'bg-yellow-500' :
-                      currentRiskScore?.overall_score >= 20 ? 'bg-green-500' :
+                      displayRiskScore?.overall_score >= 80 ? 'bg-red-500' :
+                      displayRiskScore?.overall_score >= 60 ? 'bg-orange-500' :
+                      displayRiskScore?.overall_score >= 40 ? 'bg-yellow-500' :
+                      displayRiskScore?.overall_score >= 20 ? 'bg-green-500' :
                       'bg-blue-500'
                     }`}
-                    style={{ width: `${currentRiskScore?.overall_score || 45}%` }}
+                    style={{ width: `${displayRiskScore?.overall_score || 45}%` }}
                   ></div>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400 mt-1">
@@ -164,15 +173,15 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
               {/* Risk Description */}
               <div className="text-center">
                 <p className="text-slate-300 mb-4">
-                  {currentRiskScore?.overall_score >= 80 ? 'Critical risk level requires immediate attention.' :
-                   currentRiskScore?.overall_score >= 60 ? 'High risk level suggests caution and further investigation.' :
-                   currentRiskScore?.overall_score >= 40 ? 'Medium risk level indicates moderate concerns.' :
-                   currentRiskScore?.overall_score >= 20 ? 'Low risk level suggests generally healthy financials.' :
+                  {displayRiskScore?.overall_score >= 80 ? 'Critical risk level requires immediate attention.' :
+                   displayRiskScore?.overall_score >= 60 ? 'High risk level suggests caution and further investigation.' :
+                   displayRiskScore?.overall_score >= 40 ? 'Medium risk level indicates moderate concerns.' :
+                   displayRiskScore?.overall_score >= 20 ? 'Low risk level suggests generally healthy financials.' :
                    'Very low risk level indicates strong financial health.'}
                 </p>
                 <div className="text-xs text-slate-400">
-                  Last updated: {currentRiskScore?.analysis_timestamp ?
-                    new Date(currentRiskScore.analysis_timestamp).toLocaleString() : 'Recently'}
+                  Last updated: {displayRiskScore?.analysis_timestamp ?
+                    new Date(displayRiskScore.analysis_timestamp).toLocaleString() : 'Recently'}
                 </div>
               </div>
             </div>
@@ -245,9 +254,9 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
             <h3 className="text-xl font-semibold mb-4">Risk Factors Analysis</h3>
 
-            {currentRiskScore?.risk_factors && currentRiskScore.risk_factors.length > 0 ? (
+            {displayRiskScore?.risk_factors && displayRiskScore.risk_factors.length > 0 ? (
               <div className="space-y-4">
-                {currentRiskScore.risk_factors.map((factor, index) => (
+                {displayRiskScore.risk_factors.map((factor, index) => (
                   <div key={index} className="bg-slate-900/30 rounded-lg p-4 border border-slate-700/30">
                     <div className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center mt-0.5">
@@ -296,8 +305,8 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
             <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
               <h4 className="text-lg font-semibold mb-4">Current Period</h4>
               <div className="text-center">
-                <div className="text-3xl font-bold text-yellow-400 mb-2">{currentRiskScore?.overall_score || 45}</div>
-                <div className="text-sm text-slate-400">{currentRiskScore?.risk_level || 'MEDIUM'}</div>
+                <div className="text-3xl font-bold text-yellow-400 mb-2">{displayRiskScore?.overall_score || 45}</div>
+                <div className="text-sm text-slate-400">{displayRiskScore?.risk_level || 'MEDIUM'}</div>
               </div>
             </div>
 

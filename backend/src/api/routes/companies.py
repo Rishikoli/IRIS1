@@ -9,8 +9,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from database.connection import get_db_client
-from api.schemas.models import (
+from src.database.connection import get_db_client
+from src.api.schemas.models import (
     CompanyCreate, CompanyResponse, FinancialStatementResponse,
     SuccessResponse, ErrorResponse
 )

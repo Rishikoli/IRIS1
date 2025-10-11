@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FiTrendingUp, FiTrendingDown, FiMinus, FiBarChart, FiPieChart, FiCheck } from 'react-icons/fi'
+import { FiTrendingUp, FiTrendingDown, FiMinus, FiBarChart, FiPieChart, FiCheck, FiShield } from 'react-icons/fi'
 
 interface AnalysisResult {
   success: boolean
@@ -14,6 +14,8 @@ interface AnalysisResult {
   anomaly_detection?: any
   altman_z_score?: any
   beneish_m_score?: any
+  risk_assessment?: any
+  compliance_assessment?: any
 }
 
 interface ResultsVisualizationProps {
@@ -22,7 +24,7 @@ interface ResultsVisualizationProps {
 }
 
 export default function ResultsVisualization({ analysisResult, isLoading }: ResultsVisualizationProps) {
-  const [activeView, setActiveView] = useState<'overview' | 'ratios' | 'trends' | 'anomalies'>('overview')
+  const [activeView, setActiveView] = useState<'overview' | 'ratios' | 'trends' | 'anomalies' | 'risk' | 'compliance'>('overview')
 
   // Utility functions
   const formatValue = (value: number) => {
@@ -97,6 +99,8 @@ export default function ResultsVisualization({ analysisResult, isLoading }: Resu
             { id: 'ratios', label: 'Financial Ratios', icon: FiPieChart },
             { id: 'trends', label: 'Trend Analysis', icon: FiTrendingUp },
             { id: 'anomalies', label: 'Anomalies', icon: FiTrendingDown },
+            { id: 'risk', label: 'Risk Assessment', icon: FiShield },
+            { id: 'compliance', label: 'Compliance', icon: FiCheck },
           ].map((view) => (
             <button
               key={view.id}
@@ -125,6 +129,8 @@ export default function ResultsVisualization({ analysisResult, isLoading }: Resu
         {activeView === 'ratios' && <RatiosView analysisResult={analysisResult} />}
         {activeView === 'trends' && <TrendsView analysisResult={analysisResult} />}
         {activeView === 'anomalies' && <AnomaliesView analysisResult={analysisResult} />}
+        {activeView === 'risk' && <RiskView analysisResult={analysisResult} />}
+        {activeView === 'compliance' && <ComplianceView analysisResult={analysisResult} />}
       </div>
     </div>
   )
@@ -355,6 +361,162 @@ function AnomaliesView({ analysisResult }: { analysisResult: AnalysisResult }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function RiskView({ analysisResult }: { analysisResult: AnalysisResult }) {
+  const riskData = analysisResult.risk_assessment
+
+  // Utility functions
+  const formatValue = (value: number) => {
+    if (typeof value === 'number') {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+    }
+    return value
+  }
+
+  if (!riskData) {
+    return (
+      <div className="neumorphic-card rounded-3xl p-8" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <div className="text-center">
+          <FiShield className="w-16 h-16 mx-auto mb-4" style={{ color: '#7B68EE' }} />
+          <h3 className="text-xl font-bold mb-2" style={{ color: '#333' }}>Risk Assessment</h3>
+          <p className="text-slate-600">Risk assessment data not available</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-8">
+      {/* Risk Overview */}
+      <div className="neumorphic-card rounded-3xl p-6" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <h3 className="text-xl font-bold mb-4" style={{ color: '#333' }}>Risk Overview</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Overall Risk Score</span>
+            <span className="font-mono text-lg font-bold" style={{ color: '#333' }}>
+              {formatValue(riskData.overall_risk_score || 0)}/100
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Risk Level</span>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              (riskData.risk_level === 'LOW') ? 'bg-green-600 text-white' :
+              (riskData.risk_level === 'MEDIUM') ? 'bg-yellow-600 text-white' :
+              'bg-red-600 text-white'
+            }`}>
+              {riskData.risk_level || 'UNKNOWN'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Investment Recommendation</span>
+            <span className="font-medium" style={{ color: '#7B68EE' }}>
+              {riskData.investment_recommendation || 'N/A'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Monitoring Frequency</span>
+            <span className="font-medium" style={{ color: '#333' }}>
+              {riskData.monitoring_frequency || 'N/A'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Risk Factors */}
+      <div className="neumorphic-card rounded-3xl p-6" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <h3 className="text-xl font-bold mb-4" style={{ color: '#333' }}>Key Risk Factors</h3>
+        <div className="space-y-3">
+          {riskData.risk_factors && riskData.risk_factors.length > 0 ? (
+            riskData.risk_factors.map((factor: string, index: number) => (
+              <div key={index} className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                <span className="text-slate-600">{factor}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-600">No specific risk factors identified</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ComplianceView({ analysisResult }: { analysisResult: AnalysisResult }) {
+  const complianceData = analysisResult.compliance_assessment
+
+  // Utility functions
+  const formatValue = (value: number) => {
+    if (typeof value === 'number') {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+    }
+    return value
+  }
+
+  if (!complianceData) {
+    return (
+      <div className="neumorphic-card rounded-3xl p-8" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <div className="text-center">
+          <FiCheck className="w-16 h-16 mx-auto mb-4" style={{ color: '#7B68EE' }} />
+          <h3 className="text-xl font-bold mb-2" style={{ color: '#333' }}>Compliance Assessment</h3>
+          <p className="text-slate-600">Compliance assessment data not available</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-8">
+      {/* Compliance Overview */}
+      <div className="neumorphic-card rounded-3xl p-6" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <h3 className="text-xl font-bold mb-4" style={{ color: '#333' }}>Compliance Overview</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Overall Compliance Score</span>
+            <span className="font-mono text-lg font-bold" style={{ color: '#333' }}>
+              {formatValue(complianceData.overall_compliance_score || 0)}/100
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Compliance Status</span>
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+              (complianceData.compliance_status === 'COMPLIANT') ? 'bg-green-600 text-white' :
+              (complianceData.compliance_status === 'PARTIAL_COMPLIANCE') ? 'bg-yellow-600 text-white' :
+              'bg-red-600 text-white'
+            }`}>
+              {complianceData.compliance_status || 'UNKNOWN'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-600">Next Review Date</span>
+            <span className="font-medium" style={{ color: '#333' }}>
+              {complianceData.next_review_date ? new Date(complianceData.next_review_date).toLocaleDateString() : 'N/A'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Framework Scores */}
+      <div className="neumorphic-card rounded-3xl p-6" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
+        <h3 className="text-xl font-bold mb-4" style={{ color: '#333' }}>Regulatory Frameworks</h3>
+        <div className="space-y-3">
+          {complianceData.framework_scores ? (
+            Object.entries(complianceData.framework_scores).map(([framework, score]: [string, any]) => (
+              <div key={framework} className="flex items-center justify-between">
+                <span className="text-slate-600">{framework}</span>
+                <span className="font-mono font-bold" style={{ color: '#333' }}>
+                  {formatValue(score || 0)}/100
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-600">No framework scores available</p>
+          )}
+        </div>
       </div>
     </div>
   )
