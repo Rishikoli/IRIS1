@@ -101,43 +101,90 @@ def _make_json_safe(value):
         return str(value)
 
 
-@ingestion_router.post("/{company_symbol}")
-async def ingest_company_data(company_symbol: str):
-    """Ingest financial data for a company from Yahoo Finance or fallback to enhanced mock data"""
+@ingestion_router.get("/{company_symbol}")
+async def get_data_source_info(company_symbol: str):
+    """Get information about data sources for a company symbol"""
     try:
-        logger.info(f"Starting data ingestion for {company_symbol}")
+        logger.info(f"🔍 Checking data sources for {company_symbol}")
 
         # Try to get real data from Yahoo Finance first
         financial_statements = await _fetch_yahoo_finance_data(company_symbol)
 
         if financial_statements:
-            logger.info(f"Successfully fetched real Yahoo Finance data: {len(financial_statements)} statements")
             data_source = "yahoo_finance"
+            status = "✅ Real data available"
+            message = f"Real financial data found for {company_symbol} on Yahoo Finance"
+        else:
+            data_source = "enhanced_mock_data"
+            status = "⚠️ No real data found"
+            message = f"No real data available for {company_symbol}, would use mock data"
+
+        return {
+            "company_symbol": company_symbol,
+            "data_source": data_source,
+            "status": status,
+            "message": message,
+            "available_statements": len(financial_statements) if financial_statements else 0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error checking data sources for {company_symbol}: {e}")
+        return {
+            "company_symbol": company_symbol,
+            "data_source": "error",
+            "status": "❌ Error",
+            "message": f"Error checking data sources: {str(e)}",
+            "available_statements": 0,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+
+@ingestion_router.post("/{company_symbol}")
+async def ingest_company_data(company_symbol: str):
+    try:
+        logger.info(f"🔄 Starting data ingestion for {company_symbol}")
+
+        # Try to get real data from Yahoo Finance first
+        financial_statements = await _fetch_yahoo_finance_data(company_symbol)
+
+        if financial_statements:
+            logger.info(f"✅ Successfully fetched real Yahoo Finance data: {len(financial_statements)} statements")
+            data_source = "yahoo_finance"
+            message = f"Successfully ingested real financial data for {company_symbol} from Yahoo Finance"
         else:
             # Fallback to enhanced mock data for testing
-            logger.info(f"Using enhanced mock data for {company_symbol}")
+            logger.warning(f"⚠️ No real data found for {company_symbol}, using enhanced mock data for testing")
             financial_statements = _create_enhanced_mock_data(company_symbol)
             data_source = "enhanced_mock_data"
+            message = f"Using enhanced mock data for {company_symbol} (no real data available)"
 
         if not financial_statements:
             raise HTTPException(
                 status_code=404,
-                detail=f"No financial data available for {company_symbol}"
+                detail=f"No financial data available for {company_symbol}. The company may not exist or may not have financial data available."
             )
+
+        # Get date range
+        periods = [s['period_end'] for s in financial_statements]
+        period_start = min(periods) if periods else None
+        period_end = max(periods) if periods else None
 
         return {
             "success": True,
             "company_symbol": company_symbol,
             "financial_statements": financial_statements,
-            "period_start": min([s['period_end'] for s in financial_statements]),
-            "period_end": max([s['period_end'] for s in financial_statements]),
+            "period_start": period_start,
+            "period_end": period_end,
             "data_source": data_source,
             "statement_count": len(financial_statements),
-            "message": f"Successfully ingested financial data for {company_symbol}"
+            "message": message
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error ingesting data for {company_symbol}: {e}")
+        logger.error(f"❌ Error ingesting data for {company_symbol}: {e}")
         raise HTTPException(status_code=500, detail=f"Data ingestion failed: {str(e)}")
 
 
@@ -194,6 +241,7 @@ async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
                         })
 
                     # Success! We found working data
+                    logger.info(f"✅ Successfully fetched real data for {company_symbol} using {symbol_format}")
                     return financial_statements
 
             except Exception as e:
@@ -201,7 +249,7 @@ async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
                 continue
 
         # No symbol format worked
-        logger.warning(f"No Yahoo Finance data available for {company_symbol} in any format")
+        logger.warning(f"❌ No Yahoo Finance data available for {company_symbol} in any format")
         return []
 
     except Exception as e:
