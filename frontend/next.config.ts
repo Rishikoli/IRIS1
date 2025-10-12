@@ -1,15 +1,18 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // Proxy API requests from the Next.js dev server to the FastAPI backend
-  async rewrites() {
+// next.config.js
+const nextConfig = {
+  async headers() {
     return [
       {
-        source: "/api/:path*",
-        destination: "http://localhost:8000/api/:path*",
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "connect-src 'self' http://localhost:8000 https://rsyyqooksg.supabase.co ws://localhost:8000;",
+          },
+        ],
       },
     ];
   },
 };
-
-export default nextConfig;
