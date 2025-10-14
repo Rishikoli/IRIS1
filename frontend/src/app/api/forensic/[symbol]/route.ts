@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 
 export async function POST(
   request: Request,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    const { symbol } = params
+    const { symbol } = await params
 
     if (!symbol) {
       return NextResponse.json(
@@ -40,11 +40,12 @@ export async function POST(
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in forensic analysis:', error)
+    const resolvedParams = await params
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to run forensic analysis',
-        company_id: params.symbol,
+        company_id: resolvedParams.symbol,
         analysis_timestamp: new Date().toISOString()
       },
       { status: 500 }

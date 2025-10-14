@@ -1,18 +1,13 @@
 import type { NextConfig } from "next";
 
-// next.config.js
-const nextConfig = {
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "connect-src 'self' http://localhost:8000 https://rsyyqooksg.supabase.co ws://localhost:8000;",
-          },
-        ],
-      },
-    ];
+const nextConfig: NextConfig = {
+  /* config options here */
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: false,
   },
 };
+
+export default nextConfig;

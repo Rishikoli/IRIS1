@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from src.config import settings
-from src.api.routes import companies, forensic, auth_router, realtime
+from src.api.routes import companies, forensic, auth_router, realtime, reports
 from src.models import create_tables
 
 # Configure logging
@@ -70,6 +70,7 @@ app.include_router(forensic.risk_router)
 app.include_router(forensic.companies_router)
 app.include_router(auth_router)
 app.include_router(realtime.router)
+app.include_router(reports.reports_router)
 
 # Ensure tables exist on startup (but don't fail if DB is unavailable)
 @app.on_event("startup")

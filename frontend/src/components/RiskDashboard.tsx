@@ -22,6 +22,7 @@ interface AnalysisResult {
   success: boolean
   company_id: string
   analysis_timestamp: string
+  risk_assessment?: any
   anomaly_detection?: {
     success: boolean
     anomalies_detected: number
@@ -52,6 +53,8 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
     )
   }
 
+  const currentRiskScore = riskScore?.risk_score
+  const forensicRiskData = analysisResult?.risk_assessment
   const displayRiskScore = currentRiskScore || forensicRiskData
   const riskFactors = currentRiskScore?.risk_factors || forensicRiskData?.risk_factors || []
 
@@ -87,12 +90,8 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
     }
   }
 
-  const currentRiskScore = riskScore?.risk_score
   const anomalies = analysisResult?.anomaly_detection?.anomalies || []
   const benfordAnomalous = analysisResult?.benford_analysis?.is_anomalous || false
-
-  // Also check if risk data is in analysisResult (from forensic analysis API)
-  const forensicRiskData = analysisResult?.risk_assessment
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -256,7 +255,7 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
 
             {displayRiskScore?.risk_factors && displayRiskScore.risk_factors.length > 0 ? (
               <div className="space-y-4">
-                {displayRiskScore.risk_factors.map((factor, index) => (
+                {displayRiskScore.risk_factors.map((factor: any, index: number) => (
                   <div key={index} className="bg-slate-900/30 rounded-lg p-4 border border-slate-700/30">
                     <div className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center mt-0.5">

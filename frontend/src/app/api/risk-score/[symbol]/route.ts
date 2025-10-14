@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server'
 
 export async function POST(
   request: Request,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    const { symbol } = params
+    const { symbol } = await params
 
     if (!symbol) {
       return NextResponse.json(
@@ -39,11 +39,12 @@ export async function POST(
     return NextResponse.json(data)
   } catch (error) {
     console.error('Error in risk score calculation:', error)
+    const resolvedParams = await params
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to calculate risk score',
-        company_id: params.symbol
+        company_id: resolvedParams.symbol
       },
       { status: 500 }
     )
