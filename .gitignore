@@ -1,0 +1,25 @@
+
+backend/iris_venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/uploads/
+backend/data/
+backend/*.log
+
+# ---- Frontend (Node / Next.js) ----
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+frontend/.cache/
+
+# ---- Backups / archives / misc ----
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

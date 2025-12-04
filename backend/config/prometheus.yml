@@ -1,0 +1,40 @@
+# Prometheus Configuration for Project IRIS
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'iris-forensic'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Scrape configurations
+scrape_configs:
+  # FastAPI Application
+  - job_name: 'iris-api'
+    static_configs:
+      - targets: ['iris-api:8000']
+    metrics_path: '/metrics'
+    
+  # Celery Workers
+  - job_name: 'celery-worker'
+    static_configs:
+      - targets: ['celery-worker-forensic:9999']
+    
+  # PostgreSQL
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+      
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+      
+  # ChromaDB
+  - job_name: 'chromadb'
+    static_configs:
+      - targets: ['chromadb:8000']
