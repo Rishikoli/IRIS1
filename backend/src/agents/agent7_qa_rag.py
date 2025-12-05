@@ -75,7 +75,7 @@ class QASystem:
         try:
             genai.configure(api_key=settings.gemini_api_key)
             self.gemini_model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash-exp",
+                model_name="gemini-2.0-flash",
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,
                     max_output_tokens=2048,
@@ -342,6 +342,53 @@ You are a financial analysis expert specializing in Indian public companies. Ans
         except Exception as e:
             logger.error(f"Failed to index company data for {company_symbol}: {e}")
             return False
+
+    def ingest_from_connector(self, connector_type: str, source: str) -> Dict[str, Any]:
+        """
+        Ingest data using a specific connector.
+        
+        Args:
+            connector_type: 'pdf' or 'web'
+            source: File path or URL
+            
+        Returns:
+            Dict with success status and stats
+        """
+        try:
+            from src.connectors.pdf import PDFConnector
+            from src.connectors.web import WebConnector
+            
+            connector = None
+            if connector_type == 'pdf':
+                connector = PDFConnector()
+            elif connector_type == 'web':
+                connector = WebConnector()
+            else:
+                return {"success": False, "error": f"Unknown connector type: {connector_type}"}
+                
+            logger.info(f"Ingesting from {connector_type}: {source}")
+            documents = connector.ingest(source)
+            
+            if not documents:
+                return {"success": False, "error": "No content extracted"}
+                
+            success_count = 0
+            for i, doc in enumerate(documents):
+                # Create a unique ID
+                doc_id = f"{connector_type}_{hashlib.md5(source.encode()).hexdigest()[:8]}_{i}"
+                if self.add_document(doc_id, doc['text'], doc['metadata']):
+                    success_count += 1
+                    
+            return {
+                "success": True,
+                "documents_ingested": success_count,
+                "total_documents": len(documents),
+                "source": source
+            }
+            
+        except Exception as e:
+            logger.error(f"Ingestion failed: {e}")
+            return {"success": False, "error": str(e)}
 
     def get_collection_stats(self) -> Dict[str, Any]:
         """Get statistics about the vector database collection"""

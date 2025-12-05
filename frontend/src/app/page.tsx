@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import CardNav from "@/components/CardNav";
+
 // Lazy-load heavy WebGL background to reduce initial JS
 const LiquidEther = dynamic(() => import('@/components/LiquidEther'), {
   ssr: false,
@@ -16,7 +17,7 @@ const LiquidEther = dynamic(() => import('@/components/LiquidEther'), {
 export default function Home() {
   const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
-  
+
   // Defer mounting of heavy effect until after first paint/idle and respect reduced-motion
   const [enableEffect, setEnableEffect] = useState(false);
   const [simProps, setSimProps] = useState({
@@ -181,13 +182,13 @@ export default function Home() {
     setCurrentSlide((prev) => (prev - 1 + carouselSlides.length) % carouselSlides.length);
   };
 
- 
+
 
   return (
     <div className="relative h-screen overflow-hidden">
       {/* Background Gradient */}
       <div className="fixed inset-0 bg-gradient-to-br from-indigo-50/60 to-purple-50/60" style={{ backgroundColor: '#f5f5f5', zIndex: 0 }} />
-      
+
       {/* Main Content */}
       <div className="relative h-screen p-1" style={{ zIndex: 10, position: 'relative' }}>
         <div className="h-screen font-sans relative overflow-x-hidden bg-opacity-90 flex flex-col" style={{ backgroundColor: 'transparent' }}>
@@ -251,11 +252,11 @@ export default function Home() {
           <div className="relative flex-1 w-full">
             <div className="h-full flex items-center px-6 lg:px-12">
               <div className="max-w-7xl mx-auto w-full">
-          {/* Split Layout: Hero Left, Carousel Right */}
+                {/* Split Layout: Hero Left, Carousel Right */}
                 <div className="flex flex-col lg:flex-row items-center gap-16 mb-12">
                   {/* Left Hero Content */}
                   <div className="flex-1 space-y-8">
-            <div className="inline-flex items-center px-6 py-3 rounded-full mb-6 neumorphic-inset" style={{ background: 'transparent', boxShadow: 'inset 8px 8px 16px #d0d0d0, inset -8px -8px 16px #ffffff' }}>
+                    <div className="inline-flex items-center px-6 py-3 rounded-full mb-6 neumorphic-inset" style={{ background: 'transparent', boxShadow: 'inset 8px 8px 16px #d0d0d0, inset -8px -8px 16px #ffffff' }}>
                       <span className="w-3 h-3 rounded-full mr-3 neumorphic-circle" style={{ background: '#f2a09e', boxShadow: 'inset 2px 2px 4px #d89592, inset -2px -2px 4px #ffcfc8' }} />
                       <span className="text-sm font-semibold" style={{ color: '#666' }}>AI-Powered Financial Forensics Platform</span>
                     </div>
@@ -266,20 +267,20 @@ export default function Home() {
                     <p className="text-lg lg:text-xl mb-8 leading-relaxed" style={{ color: '#666' }}>
                       Comprehensive financial forensics platform for analyzing Indian public companies with fraud detection, risk assessment, and regulatory compliance powered by AI/ML
                     </p>
-            </div>
+                  </div>
                   {/* End Left Hero Content */}
 
                   {/* Quick Action Buttons */}
                   <div className="flex gap-4">
-                    <button 
+                    <button
                       onClick={() => router.push('/iris')}
-                      className="px-8 py-4 rounded-xl font-semibold text-white transition-all neumorphic-button cursor-pointer" 
+                      className="px-8 py-4 rounded-xl font-semibold text-white transition-all neumorphic-button cursor-pointer"
                       style={{ background: 'linear-gradient(135deg, #f2a09e 0%, #e89694 100%)', boxShadow: '8px 8px 16px #d89592, -8px -8px 16px #ffcfc8' }}
                     >
                       Launch Dashboard
                     </button>
-                    <button 
-                      className="px-8 py-4 rounded-xl font-semibold transition-all neumorphic-button cursor-pointer" 
+                    <button
+                      className="px-8 py-4 rounded-xl font-semibold transition-all neumorphic-button cursor-pointer"
                       style={{ background: '#f0f0f0', boxShadow: '8px 8px 16px #d0d0d0, -8px -8px 16px #ffffff', color: '#666' }}
                     >
                       Learn More
@@ -288,21 +289,23 @@ export default function Home() {
                   {/* End Left Hero Content */}
 
                   {/* Right Carousel Section */}
-                  <div className="flex-1 max-w-2xl w-full">
-              {/* Carousel Card */}
+                  <div className="flex-1 max-w-2xl w-full space-y-8">
+
+
+                    {/* Carousel Card */}
                     <div className="w-full">
-                      <div 
+                      <div
                         className="neumorphic-card rounded-3xl p-8 transition-all duration-500"
-                        style={{ 
-                          background: '#f0f0f0', 
+                        style={{
+                          background: '#f0f0f0',
                           boxShadow: '16px 16px 32px #d0d0d0, -16px -16px 32px #ffffff',
                           transform: 'translateY(0)',
                         }}
                       >
-                  <div 
-                          className="flex items-center justify-center w-24 h-24 rounded-3xl mb-8 mx-auto neumorphic-icon" 
-                          style={{ 
-                            background: 'linear-gradient(135deg, ' + carouselSlides[currentSlide].colors.gradientFrom + ' 0%, ' + carouselSlides[currentSlide].colors.gradientTo + ' 100%)', 
+                        <div
+                          className="flex items-center justify-center w-24 h-24 rounded-3xl mb-8 mx-auto neumorphic-icon"
+                          style={{
+                            background: 'linear-gradient(135deg, ' + carouselSlides[currentSlide].colors.gradientFrom + ' 0%, ' + carouselSlides[currentSlide].colors.gradientTo + ' 100%)',
                             boxShadow: '8px 8px 16px ' + carouselSlides[currentSlide].colors.shadowDark + ', -8px -8px 16px ' + carouselSlides[currentSlide].colors.shadowLight
                           }}
                         >
@@ -315,10 +318,10 @@ export default function Home() {
                           {carouselSlides[currentSlide].description}
                         </p>
 
-                  {/* Visual Stats/Numbers */}
+                        {/* Visual Stats/Numbers */}
                         <div className="grid grid-cols-3 gap-4 mb-8">
                           {carouselSlides[currentSlide].features.map((feature, index) => (
-                            <div 
+                            <div
                               key={index}
                               className="neumorphic-inset rounded-2xl p-4 text-center"
                               style={{ background: 'transparent', boxShadow: 'inset 4px 4px 8px #d0d0d0, inset -4px -4px 8px #ffffff' }}
@@ -333,11 +336,11 @@ export default function Home() {
                           ))}
                         </div>
 
-                  <button 
+                        <button
                           onClick={() => router.push('/iris')}
-                          className="w-full py-4 rounded-xl font-semibold text-white transition-all neumorphic-button cursor-pointer" 
-                          style={{ 
-                            background: 'linear-gradient(135deg, ' + carouselSlides[currentSlide].colors.gradientFrom + ' 0%, ' + carouselSlides[currentSlide].colors.gradientTo + ' 100%)', 
+                          className="w-full py-4 rounded-xl font-semibold text-white transition-all neumorphic-button cursor-pointer"
+                          style={{
+                            background: 'linear-gradient(135deg, ' + carouselSlides[currentSlide].colors.gradientFrom + ' 0%, ' + carouselSlides[currentSlide].colors.gradientTo + ' 100%)',
                             boxShadow: '8px 8px 16px ' + carouselSlides[currentSlide].colors.shadowDark + ', -8px -8px 16px ' + carouselSlides[currentSlide].colors.shadowLight
                           }}
                         >
@@ -345,9 +348,9 @@ export default function Home() {
                         </button>
                       </div>
 
-                {/* Carousel Navigation Below Card */}
+                      {/* Carousel Navigation Below Card */}
                       <div className="flex items-center justify-center gap-6 mt-8">
-                        <button 
+                        <button
                           onClick={prevSlide}
                           className="w-12 h-12 rounded-full flex items-center justify-center transition-all neumorphic-button"
                           style={{ background: '#f0f0f0', boxShadow: '8px 8px 16px #d0d0d0, -8px -8px 16px #ffffff' }}
@@ -358,7 +361,7 @@ export default function Home() {
                           </svg>
                         </button>
 
-                  {/* Slide Indicators */}
+                        {/* Slide Indicators */}
                         <div className="flex gap-3">
                           {carouselSlides.map((_, index) => (
                             <button
@@ -377,7 +380,7 @@ export default function Home() {
                           ))}
                         </div>
 
-                  <button 
+                        <button
                           onClick={nextSlide}
                           className="w-12 h-12 rounded-full flex items-center justify-center transition-all neumorphic-button"
                           style={{ background: '#f0f0f0', boxShadow: '8px 8px 16px #d0d0d0, -8px -8px 16px #ffffff' }}

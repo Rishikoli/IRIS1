@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
+import SentimentSection from './SentimentSection';
+
 // Dynamically import D3 components to avoid SSR issues
 const FinancialRatiosChart = dynamic(() => import('@/components/charts/FinancialRatiosChart'), { ssr: false });
 const VerticalAnalysisChart = dynamic(() => import('@/components/charts/VerticalAnalysisChart'), { ssr: false });
@@ -13,9 +15,11 @@ const MScoreChart = dynamic(() => import('@/components/charts/MScoreChart'), { s
 interface ForensicSectionProps {
   analysisData: any;
   isLoading?: boolean;
+  sentimentData?: any;
+  isSentimentLoading?: boolean;
 }
 
-export default function ForensicSection({ analysisData, isLoading = false }: ForensicSectionProps) {
+export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false }: ForensicSectionProps) {
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
   if (isLoading) {
@@ -44,6 +48,7 @@ export default function ForensicSection({ analysisData, isLoading = false }: For
 
   const subTabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'sentiment', label: 'Market Sentiment', icon: '📈' },
     { id: 'ratios', label: 'Financial Ratios', icon: '📈' },
     { id: 'vertical', label: 'Vertical Analysis', icon: '📊' },
     { id: 'horizontal', label: 'Horizontal Analysis', icon: '📈' },
@@ -57,6 +62,8 @@ export default function ForensicSection({ analysisData, isLoading = false }: For
     switch (activeSubTab) {
       case 'overview':
         return <ForensicOverview analysisData={analysisData} />;
+      case 'sentiment':
+        return <SentimentSection sentimentData={sentimentData} isLoading={isSentimentLoading} />;
       case 'ratios':
         return <FinancialRatiosChart data={analysisData.financial_ratios} />;
       case 'vertical':
@@ -103,21 +110,20 @@ export default function ForensicSection({ analysisData, isLoading = false }: For
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all neumorphic-button ${
-              activeSubTab === tab.id ? 'active-tab' : ''
-            }`}
+            className={`flex items-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all neumorphic-button ${activeSubTab === tab.id ? 'active-tab' : ''
+              }`}
             style={
               activeSubTab === tab.id
                 ? {
-                    background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
-                    boxShadow: '6px 6px 12px rgba(123, 104, 238, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
-                    color: '#fff'
-                  }
+                  background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
+                  boxShadow: '6px 6px 12px rgba(123, 104, 238, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
+                  color: '#fff'
+                }
                 : {
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    boxShadow: '6px 6px 12px rgba(0,0,0,0.1), -6px -6px 12px rgba(255,255,255,0.9)',
-                    color: '#64748b'
-                  }
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  boxShadow: '6px 6px 12px rgba(0,0,0,0.1), -6px -6px 12px rgba(255,255,255,0.9)',
+                  color: '#64748b'
+                }
             }
           >
             <span className="text-lg">{tab.icon}</span>
@@ -251,32 +257,41 @@ function ForensicOverview({ analysisData }: { analysisData: any }) {
               boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)'
             }}>
               <h4 className="font-semibold mb-3" style={{ color: '#1e293b' }}>📊 Financial Ratios</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Gross Margin:</span>
-                  <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                    {analysisData.financial_ratios?.financial_ratios?.['2024']?.gross_margin_pct || 'N/A'}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600">Net Margin:</span>
-                  <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                    {analysisData.financial_ratios?.financial_ratios?.['2024']?.net_margin_pct || 'N/A'}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600">ROE:</span>
-                  <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                    {analysisData.financial_ratios?.financial_ratios?.['2024']?.roe || 'N/A'}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-600">ROA:</span>
-                  <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                    {analysisData.financial_ratios?.financial_ratios?.['2024']?.roa || 'N/A'}%
-                  </span>
-                </div>
-              </div>
+              {(() => {
+                const ratios = analysisData.financial_ratios?.financial_ratios || {};
+                const periods = Object.keys(ratios).sort().reverse();
+                const latestPeriod = periods[0];
+                const latestRatios = latestPeriod ? ratios[latestPeriod] : {};
+
+                return (
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Gross Margin:</span>
+                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
+                        {latestRatios.gross_margin_pct || 'N/A'}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Net Margin:</span>
+                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
+                        {latestRatios.net_margin_pct || 'N/A'}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">ROE:</span>
+                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
+                        {latestRatios.roe || 'N/A'}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">ROA:</span>
+                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
+                        {latestRatios.roa || 'N/A'}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="p-6 rounded-2xl" style={{

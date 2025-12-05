@@ -29,6 +29,7 @@ compliance_agent = ComplianceValidationAgent()
 @reports_router.post("/generate")
 async def generate_reports_api(request: Dict[str, Any]):
     """Generate comprehensive reports for a company"""
+    print(f"DEBUG: Received report request: {request}")
     try:
         company_symbol = request.get('company_symbol')
         export_formats = request.get('export_formats', ['pdf', 'excel'])

@@ -41,6 +41,11 @@ export default function MScoreChart({ data }: MScoreChartProps) {
       { range: [-1.78, 10], label: 'Aggressive', color: '#f59e0b', description: 'Moderate manipulation risk' }
     ];
 
+    // Scale for Y-axis (M-Score values)
+    const yScale = d3.scaleLinear()
+      .domain([-5, 5]) // Extended range for better visualization
+      .range([height, 0]);
+
     // Draw zone backgrounds
     zones.forEach((zone, index) => {
       const yStart = yScale(zone.range[0]);
@@ -73,10 +78,7 @@ export default function MScoreChart({ data }: MScoreChartProps) {
         .text(zone.description);
     });
 
-    // Scale for Y-axis (M-Score values)
-    const yScale = d3.scaleLinear()
-      .domain([-5, 5]) // Extended range for better visualization
-      .range([height, 0]);
+
 
     // Draw Y-axis
     svg.append("g")

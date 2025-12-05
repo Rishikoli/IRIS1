@@ -14,7 +14,7 @@ from src.agents.agent7_qa_rag import answer_financial_question, index_company_fo
 logger = logging.getLogger(__name__)
 
 # Create router
-router = APIRouter(prefix="/api/v1/qa", tags=["Q&A System"])
+router = APIRouter(tags=["Q&A System"])
 
 class QuestionRequest(BaseModel):
     """Request model for Q&A queries"""
