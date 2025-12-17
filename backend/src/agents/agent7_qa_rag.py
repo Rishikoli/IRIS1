@@ -30,13 +30,49 @@ class QASystem:
         self.collection = None
         self.embedding_model = None
         self.gemini_model = None
+        self.sentiment_pipeline = None
 
         # Initialize components
         self._initialize_chroma()
         self._initialize_embedding_model()
         self._initialize_gemini()
+        self._initialize_finbert()
 
         logger.info("Q&A RAG System initialized successfully")
+
+    def _initialize_finbert(self):
+        """Initialize FinBERT for sentiment analysis"""
+        try:
+            from transformers import pipeline
+            self.sentiment_pipeline = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores=True)
+            logger.info("FinBERT initialized successfully")
+        except Exception as e:
+            logger.error(f"FinBERT initialization failed: {e}")
+
+    def _analyze_sentiment_with_finbert(self, text: str) -> Dict[str, Any]:
+        """Analyze sentiment using FinBERT"""
+        if not self.sentiment_pipeline:
+            return {"label": "Neutral", "score": 0.0}
+            
+        try:
+            # Truncate text if too long (FinBERT limit is 512 tokens, approx 2000 chars safe bet)
+            truncated_text = text[:2000]
+            results = self.sentiment_pipeline(truncated_text)
+            
+            # Results is a list of lists [[{'label': 'positive', 'score': 0.9}, ...]]
+            scores = results[0]
+            
+            # Find max score
+            best = max(scores, key=lambda x: x['score'])
+            
+            return {
+                "label": best['label'].title(), # Positive, Negative, Neutral
+                "score": best['score'],
+                "distribution": {s['label']: s['score'] for s in scores}
+            }
+        except Exception as e:
+            logger.error(f"FinBERT analysis failed: {e}")
+            return {"label": "Neutral", "score": 0.0}
 
     def _initialize_chroma(self):
         """Initialize ChromaDB client and collection"""
@@ -75,7 +111,7 @@ class QASystem:
         try:
             genai.configure(api_key=settings.gemini_api_key)
             self.gemini_model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
+                model_name="gemini-2.5-flash",
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,
                     max_output_tokens=2048,
@@ -144,7 +180,9 @@ class QASystem:
             return []
 
     def generate_answer(self, query: str, context_documents: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate answer using Gemini with RAG context"""
+        """Generate answer using Gemini with RAG context and key rotation"""
+        import time
+        
         try:
             # Prepare context from similar documents
             context = "\n\n".join([doc['document'] for doc in context_documents[:3]])
@@ -172,25 +210,69 @@ You are a financial analysis expert specializing in Indian public companies. Ans
 - End with any relevant caveats or limitations
 """
 
-            # Generate response with Gemini
-            response = self.gemini_model.generate_content(prompt)
+            # Get keys for rotation
+            keys = settings.gemini_keys
+            if not keys:
+                # Fallback to single key if list is empty (shouldn't happen with correct config)
+                keys = [settings.gemini_api_key]
 
-            if response and response.text:
-                answer_text = response.text.strip()
+            last_error = None
+            
+            for key in keys:
+                try:
+                    # Configure with current key
+                    genai.configure(api_key=key)
+                    # Create a fresh model instance to ensure key is used
+                    model = genai.GenerativeModel(
+                        model_name="gemini-2.5-flash",
+                        generation_config=genai.types.GenerationConfig(
+                            temperature=0.1,
+                            max_output_tokens=2048,
+                            top_p=0.9,
+                            top_k=40
+                        )
+                    )
 
-                return {
-                    "success": True,
-                    "answer": answer_text,
-                    "context_used": len(context_documents),
-                    "confidence": self._assess_confidence(query, context_documents, answer_text),
-                    "sources": [doc.get('metadata', {}).get('source', 'Unknown') for doc in context_documents[:3]]
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": "No response from Gemini API",
-                    "answer": "I apologize, but I couldn't generate a response at this time. Please try rephrasing your question."
-                }
+                    # Generate response with Gemini
+                    response = model.generate_content(prompt)
+
+                    if response and response.text:
+                        answer_text = response.text.strip()
+
+                        # Analyze sentiment with FinBERT
+                        sentiment = self._analyze_sentiment_with_finbert(answer_text)
+
+                        return {
+                            "success": True,
+                            "answer": answer_text,
+                            "context_used": len(context_documents),
+                            "confidence": self._assess_confidence(query, context_documents, answer_text),
+                            "sources": [doc.get('metadata', {}).get('source', 'Unknown') for doc in context_documents[:3]],
+                            "sentiment": sentiment
+                        }
+                    else:
+                        # If response is empty but no error, maybe try next key or just return error?
+                        # Usually empty response means blocked content or error.
+                        raise Exception("Empty response from Gemini")
+
+                except Exception as e:
+                    last_error = e
+                    error_msg = str(e)
+                    if "429" in error_msg or "Resource has been exhausted" in error_msg:
+                        logger.warning(f"Rate limit hit for key ending in ...{key[-4:] if key else 'None'}, trying next key...")
+                        continue
+                    else:
+                        logger.error(f"Gemini error with key ending in ...{key[-4:] if key else 'None'}: {error_msg}")
+                        # For other errors, we might also want to retry with a different key/model just in case
+                        continue
+
+            # If we get here, all keys failed
+            logger.error(f"All Gemini keys failed. Last error: {str(last_error)}")
+            return {
+                "success": False,
+                "error": f"All API keys exhausted or failed. Last error: {str(last_error)}",
+                "answer": "I apologize, but I am currently experiencing high traffic and cannot process your request. Please try again in a moment."
+            }
 
         except Exception as e:
             logger.error(f"Answer generation failed: {e}")

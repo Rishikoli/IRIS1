@@ -6,8 +6,8 @@ export async function POST(request: Request) {
     const { analysisData, companySymbol } = await request.json();
 
     // Initialize Gemini API
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    // const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Prepare regulatory analysis prompt
     const prompt = `You are a senior SEBI regulatory compliance officer analyzing ${companySymbol} for potential regulatory actions and compliance monitoring requirements.
@@ -47,10 +47,41 @@ export async function POST(request: Request) {
 - Include specific SEBI regulation references where applicable
 - End with compliance officer contact recommendation if high risk`;
 
-    // Generate content with Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const recommendations = response.text();
+    // Initialize Gemini API with key rotation
+    const keys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+      process.env.GEMINI_API_KEY_5
+    ].filter(k => k);
+
+    let recommendations = '';
+    let success = false;
+    let lastError = null;
+
+    for (const key of keys) {
+      try {
+        const genAI = new GoogleGenerativeAI(key || '');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        recommendations = response.text();
+        success = true;
+        break;
+      } catch (error: any) {
+        console.warn(`Gemini API attempt failed with key ending in ...${key?.slice(-4)}: ${error.message}`);
+        lastError = error;
+        if (error.message?.includes('429') || error.status === 429) {
+          continue; // Try next key
+        }
+      }
+    }
+
+    if (!success) {
+      throw lastError || new Error('All API keys failed');
+    }
 
     return NextResponse.json({
       success: true,

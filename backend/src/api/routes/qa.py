@@ -67,7 +67,8 @@ async def ask_question(request: QuestionRequest) -> Dict[str, Any]:
                 "context_used": result.get("context_used", 0),
                 "sources": result.get("sources", []),
                 "company_symbol": request.company_symbol,
-                "timestamp": result.get("timestamp")
+                "timestamp": result.get("timestamp"),
+                "sentiment": result.get("sentiment")
             }
         else:
             logger.error(f"Q&A failed: {result.get('error', 'Unknown error')}")

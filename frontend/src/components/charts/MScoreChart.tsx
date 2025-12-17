@@ -22,13 +22,13 @@ export default function MScoreChart({ data }: MScoreChartProps) {
     // Clear previous chart
     d3.select(chartRef.current).selectAll("*").remove();
 
-    const margin = { top: 40, right: 40, bottom: 60, left: 80 };
-    const width = 500 - margin.left - margin.right;
+    const margin = { top: 40, right: 150, bottom: 60, left: 80 };
+    const width = 600 - margin.left - margin.right;
     const height = 350 - margin.top - margin.bottom;
 
     const svg = d3.select(chartRef.current)
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 

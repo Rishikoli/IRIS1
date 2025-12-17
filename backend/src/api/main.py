@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 from src.config import settings
-from src.api.routes import companies, forensic, auth, realtime, reports, qa, sentiment, connectors
+from src.api.routes import companies, forensic, auth, realtime, reports, qa, sentiment, connectors, forensic_graph
 from src.models import create_tables
 
 # Configure logging
@@ -74,6 +74,7 @@ app.include_router(reports.reports_router)
 app.include_router(qa.router, prefix="/api/v1/qa", tags=["qa"])
 app.include_router(sentiment.router, prefix="/api/v1/sentiment", tags=["sentiment"])
 app.include_router(connectors.router, prefix="/api/v1/connectors", tags=["connectors"])
+app.include_router(forensic_graph.router)
 
 # Ensure tables exist on startup (but don't fail if DB is unavailable)
 @app.on_event("startup")

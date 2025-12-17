@@ -35,4 +35,14 @@ async def analyze_sentiment(request: SentimentRequest):
 
     except Exception as e:
         logger.error(f"Error in sentiment endpoint: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return a safe fallback instead of 500 to prevent frontend crash
+        return {
+            "success": False,
+            "data": {
+                "company": request.company_symbol,
+                "error": str(e),
+                "overall_sentiment": "Neutral",
+                "trends": {"status": "error", "data": []},
+                "news_sentiment": {"status": "error", "sentiment": "neutral"}
+            }
+        }

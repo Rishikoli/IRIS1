@@ -23,3 +23,7 @@ frontend/.cache/
 Thumbs.db
 .idea/
 .vscode/
+
+# Environment Variables
+.env
+.env.*

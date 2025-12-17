@@ -138,10 +138,14 @@ async def download_report_api(filename: str):
     """Download a generated report file"""
     try:
         # Construct file path - check multiple possible locations
+        # Construct file path - check multiple possible locations
+        current_file = os.path.abspath(__file__)
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        reports_dir = os.path.join(backend_root, "reports")
+        
         possible_paths = [
-            f"/home/aditya/I.R.I.S./backend/reports/{filename}",
+            os.path.join(reports_dir, filename),
             f"reports/{filename}",
-            f"../reports/{filename}"
         ]
 
         file_path = None

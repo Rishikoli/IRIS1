@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # API Keys
     fmp_api_key: str = Field(..., env="FMP_API_KEY")
     gemini_api_key: str = Field(..., env="GEMINI_API_KEY")
+    gemini_api_key_2: Optional[str] = Field(default=None, env="GEMINI_API_KEY_2")
+    gemini_api_key_3: Optional[str] = Field(default=None, env="GEMINI_API_KEY_3")
+    gemini_api_key_4: Optional[str] = Field(default=None, env="GEMINI_API_KEY_4")
+    gemini_api_key_5: Optional[str] = Field(default=None, env="GEMINI_API_KEY_5")
     nse_api_key: Optional[str] = Field(default=None, env="NSE_API_KEY")
     bse_api_key: Optional[str] = Field(default=None, env="BSE_API_KEY")
     
@@ -102,6 +106,16 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list:
         """Parse CORS origins from comma-separated string"""
         return [origin.strip() for origin in self.cors_origins.split(",")]
+
+    @property
+    def gemini_keys(self) -> list:
+        """Get all available Gemini API keys"""
+        keys = [self.gemini_api_key]
+        if self.gemini_api_key_2: keys.append(self.gemini_api_key_2)
+        if self.gemini_api_key_3: keys.append(self.gemini_api_key_3)
+        if self.gemini_api_key_4: keys.append(self.gemini_api_key_4)
+        if self.gemini_api_key_5: keys.append(self.gemini_api_key_5)
+        return keys
     
     @property
     def is_development(self) -> bool:

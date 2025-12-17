@@ -5,7 +5,7 @@ import os
 import tempfile
 from src.agents.agent7_qa_rag import qa_system
 
-router = APIRouter(prefix="/api/connectors", tags=["connectors"])
+router = APIRouter(tags=["connectors"])
 
 @router.post("/ingest/pdf")
 async def ingest_pdf(file: UploadFile = File(...)) -> Dict[str, Any]:

@@ -22,69 +22,82 @@ export default function ZScoreChart({ data }: ZScoreChartProps) {
     // Clear previous chart
     d3.select(chartRef.current).selectAll("*").remove();
 
-    const margin = { top: 40, right: 40, bottom: 60, left: 60 };
-    const width = 400 - margin.left - margin.right;
-    const height = 300 - margin.top - margin.bottom;
+    const margin = { top: 40, right: 120, bottom: 60, left: 60 }; // Increased right margin for labels
+    const width = 800 - margin.left - margin.right; // Increased base width for better aspect ratio
+    const height = 400 - margin.top - margin.bottom; // Increased base height
 
     const svg = d3.select(chartRef.current)
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Z-Score zones
+    // Z-Score zones covering negative values
     const zones = [
-      { range: [0, 1.8], label: 'Distress Zone', color: '#ef4444', description: 'High bankruptcy risk' },
+      { range: [-20, 1.8], label: 'Distress Zone', color: '#ef4444', description: 'High bankruptcy risk' },
       { range: [1.8, 3.0], label: 'Grey Zone', color: '#f59e0b', description: 'Moderate risk' },
-      { range: [3.0, 10], label: 'Safe Zone', color: '#4ade80', description: 'Low bankruptcy risk' }
+      { range: [3.0, 20], label: 'Safe Zone', color: '#4ade80', description: 'Low bankruptcy risk' }
     ];
 
     const zScore = parseFloat(data.z_score) || 0;
 
+    // Scale for Y-axis (Z-Score values)
+    // Dynamic domain to ensure the score is always visible
+    const minDomain = Math.min(-5, zScore - 1);
+    const maxDomain = Math.max(8, zScore + 1);
+
+    const yScale = d3.scaleLinear()
+      .domain([minDomain, maxDomain])
+      .range([height, 0]);
+
     // Draw zone backgrounds
     zones.forEach((zone, index) => {
-      const yStart = yScale(zone.range[0]);
-      const yEnd = yScale(zone.range[1]);
+      // Clamp zone ranges to the visible domain for drawing
+      const zMin = Math.max(zone.range[0], minDomain);
+      const zMax = Math.min(zone.range[1], maxDomain);
 
-      svg.append("rect")
-        .attr("x", 0)
-        .attr("y", yEnd)
-        .attr("width", width)
-        .attr("height", yStart - yEnd)
-        .attr("fill", zone.color)
-        .attr("opacity", 0.1);
+      if (zMin < zMax) {
+        const yStart = yScale(zMin);
+        const yEnd = yScale(zMax);
 
-      // Add zone labels
-      svg.append("text")
-        .attr("x", width + 10)
-        .attr("y", (yStart + yEnd) / 2)
-        .attr("text-anchor", "start")
-        .style("font-size", "12px")
-        .style("fill", zone.color)
-        .style("font-weight", "bold")
-        .text(zone.label);
+        svg.append("rect")
+          .attr("x", 0)
+          .attr("y", yEnd)
+          .attr("width", width)
+          .attr("height", Math.abs(yStart - yEnd))
+          .attr("fill", zone.color)
+          .attr("opacity", 0.1);
 
-      svg.append("text")
-        .attr("x", width + 10)
-        .attr("y", (yStart + yEnd) / 2 + 15)
-        .attr("text-anchor", "start")
-        .style("font-size", "10px")
-        .style("fill", "#64748b")
-        .text(zone.description);
+        // Add zone labels - positioned at the midpoint of the visible zone part
+        // Only show label if the zone is significantly visible
+        if (Math.abs(yStart - yEnd) > 20) {
+          svg.append("text")
+            .attr("x", width + 10)
+            .attr("y", (yStart + yEnd) / 2)
+            .attr("text-anchor", "start")
+            .style("font-size", "12px")
+            .style("fill", zone.color)
+            .style("font-weight", "bold")
+            .text(zone.label);
+
+          svg.append("text")
+            .attr("x", width + 10)
+            .attr("y", (yStart + yEnd) / 2 + 15)
+            .attr("text-anchor", "start")
+            .style("font-size", "10px")
+            .style("fill", "#64748b")
+            .text(zone.description);
+        }
+      }
     });
-
-    // Scale for Y-axis (Z-Score values)
-    const yScale = d3.scaleLinear()
-      .domain([0, 6]) // Extended range for better visualization
-      .range([height, 0]);
 
     // Draw Y-axis
     svg.append("g")
-      .call(d3.axisLeft(yScale).ticks(6))
+      .call(d3.axisLeft(yScale).ticks(10))
       .selectAll("text")
       .style("font-size", "12px");
 
-    // Draw horizontal grid lines
+    // Draw horizontal grid lines for thresholds
     svg.selectAll(".grid-line")
       .data([1.8, 3.0])
       .enter()
@@ -97,6 +110,17 @@ export default function ZScoreChart({ data }: ZScoreChartProps) {
       .style("stroke", "#64748b")
       .style("stroke-width", 1)
       .style("stroke-dasharray", "3,3");
+
+    // Draw zero line if visible
+    if (minDomain < 0 && maxDomain > 0) {
+      svg.append("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", yScale(0))
+        .attr("y2", yScale(0))
+        .style("stroke", "#94a3b8")
+        .style("stroke-width", 1);
+    }
 
     // Draw current Z-Score line
     const scoreY = yScale(zScore);
@@ -210,7 +234,7 @@ export default function ZScoreChart({ data }: ZScoreChartProps) {
           }}>
             <div className="text-sm font-bold" style={{ color: riskColor }}>
               {zScore < 1.8 ? 'Bankruptcy likely within 2 years' :
-               zScore < 3.0 ? 'Financial distress possible' : 'Strong financial health'}
+                zScore < 3.0 ? 'Financial distress possible' : 'Strong financial health'}
             </div>
             <div className="text-sm font-medium" style={{ color: '#64748b' }}>Interpretation</div>
           </div>

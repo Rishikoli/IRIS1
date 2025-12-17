@@ -78,77 +78,78 @@ class ReportingAgent:
             # For standalone analysis without database
             self.db_client = None
 
-        # Initialize Gemini client
-        self.gemini_client = self._initialize_gemini_client()
-
         # Create reports directory if it doesn't exist
-        self.reports_dir = "/home/aditya/I.R.I.S./backend/reports"
+        # Create reports directory if it doesn't exist
+        # Use absolute path relative to backend root
+        current_file = os.path.abspath(__file__)
+        # backend/src/agents/forensic/agent5.py -> backend/
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        self.reports_dir = os.path.join(backend_root, "reports")
         os.makedirs(self.reports_dir, exist_ok=True)
 
-        logger.info("Reporting Agent initialized with Gemini 2.0 integration")
-
-    def _initialize_gemini_client(self):
-        """Initialize Gemini 2.0 client"""
-        try:
-            import google.generativeai as genai
-
-            # Configure Gemini
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-
-            # Initialize model with specific configuration
-            model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash-exp",
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,
-                    max_output_tokens=8192,
-                    top_p=0.9,
-                    top_k=40
-                )
-            )
-
-            logger.info("Gemini 2.0 client initialized successfully")
-            return model
-
-        except Exception as e:
-            logger.warning(f"Gemini client initialization failed: {e}")
-            return None
+        logger.info("Reporting Agent initialized")
 
     async def generate_executive_summary(self, company_symbol: str, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate executive summary using Gemini 2.0"""
-        try:
-            if not self.gemini_client:
-                return {"success": False, "error": "Gemini client not available"}
+        """Generate executive summary using Gemini with key rotation"""
+        import google.generativeai as genai
+        from google.api_core import exceptions
 
-            # Prepare prompt for Gemini
-            prompt = self._create_executive_summary_prompt(company_symbol, analysis_data)
+        # Prepare prompt for Gemini
+        prompt = self._create_executive_summary_prompt(company_symbol, analysis_data)
+        
+        last_error = None
+        
+        # Iterate through available keys
+        for key in settings.gemini_keys:
+            try:
+                # Configure with current key
+                genai.configure(api_key=key)
+                
+                # Initialize model
+                model = genai.GenerativeModel(
+                    model_name="gemini-2.5-flash",
+                    generation_config=genai.types.GenerationConfig(
+                        temperature=0.1,
+                        max_output_tokens=8192,
+                        top_p=0.9,
+                        top_k=40
+                    )
+                )
+                
+                # Call Gemini API
+                response = await asyncio.to_thread(model.generate_content, prompt)
 
-            # Call Gemini API
-            response = self.gemini_client.generate_content(prompt)
+                if response and response.text:
+                    summary_text = response.text.strip()
 
-            if response and response.text:
-                summary_text = response.text.strip()
-
-                # Structure the response
-                executive_summary = {
-                    "success": True,
-                    "executive_summary": {
-                        "company_symbol": company_symbol,
-                        "generated_at": datetime.now().isoformat(),
-                        "summary_text": summary_text,
-                        "key_insights": self._extract_key_insights(summary_text),
-                        "risk_assessment": self._extract_risk_assessment(summary_text),
-                        "recommendations": self._extract_recommendations(summary_text)
+                    # Structure the response
+                    executive_summary = {
+                        "success": True,
+                        "executive_summary": {
+                            "company_symbol": company_symbol,
+                            "generated_at": datetime.now().isoformat(),
+                            "summary_text": summary_text,
+                            "key_insights": self._extract_key_insights(summary_text),
+                            "risk_assessment": self._extract_risk_assessment(summary_text),
+                            "recommendations": self._extract_recommendations(summary_text)
+                        }
                     }
-                }
 
-                logger.info(f"Executive summary generated for {company_symbol}")
-                return executive_summary
-            else:
-                return {"success": False, "error": "No response from Gemini API"}
+                    logger.info(f"Executive summary generated for {company_symbol} using key ending in ...{key[-4:]}")
+                    return executive_summary
+                
+            except exceptions.ResourceExhausted as e:
+                logger.warning(f"Quota exceeded for key ...{key[-4:]}, trying next key")
+                last_error = e
+                continue
+            except Exception as e:
+                logger.warning(f"Error with key ...{key[-4:]}: {e}")
+                last_error = e
+                # If it's not a quota error, we might still want to try other keys just in case
+                continue
 
-        except Exception as e:
-            logger.error(f"Executive summary generation failed for {company_symbol}: {e}")
-            return {"success": False, "error": str(e)}
+        logger.error(f"All Gemini keys failed. Last error: {last_error}")
+        return {"success": False, "error": f"All API keys failed. Last error: {str(last_error)}"}
 
     def _create_executive_summary_prompt(self, company_symbol: str, analysis_data: Dict[str, Any]) -> str:
         """Create prompt for Gemini executive summary"""
@@ -800,14 +801,7 @@ Keep the summary concise, professional, and focused on actionable insights for s
                 "success": True,
                 "comprehensive_report": {
                     "report_id": report_id,
-                    "report_metadata": {
-                        "report_id": report_metadata.report_id,
-                        "company_symbol": report_metadata.company_symbol,
-                        "report_type": report_metadata.report_type.value,
-                        "generated_at": report_metadata.generated_at,
-                        "data_sources": report_metadata.data_sources,
-                        "analysis_periods": report_metadata.analysis_periods
-                    },
+                    "report_metadata": report_metadata,
                     "forensic_report": report_data,
                     "dashboard_data": dashboard_data.get("dashboard_data", {}),
                     "exports": export_results,

@@ -8,9 +8,16 @@ import ForensicSection from "@/components/ForensicSection";
 import AnomalyHeatmap from "@/components/charts/AnomalyHeatmap";
 import FraudDetectionRadarChart from "@/components/charts/FraudDetectionRadarChart";
 import ScoreDistribution from "@/components/charts/ScoreDistribution";
+import GaugeChart from "@/components/charts/GaugeChart";
+import ForensicGraph from "@/components/ForensicGraph";
+import RiskDashboard from '@/components/RiskDashboard';
 import ChatInterface from "@/components/ChatInterface";
 import SentimentSection from '@/components/SentimentSection';
 import axios from 'axios'; // Added axios import
+import { AlertTriangle, Search, ShieldCheck, FileText, BarChart3, PieChart, Activity, FileBarChart } from 'lucide-react';
+import { ThemeToggle } from "@/components/ThemeToggle";
+import TextTicker from "@/components/TextTicker";
+import ForensicFormulasModal from "@/components/ForensicFormulasModal";
 
 export default function IRISAnalyticsDashboard() {
   const router = useRouter();
@@ -40,6 +47,7 @@ export default function IRISAnalyticsDashboard() {
   const [qaHistory, setQaHistory] = useState<any[]>([]);
   const [isLoadingQa, setIsLoadingQa] = useState(false);
   const [qaConfidence, setQaConfidence] = useState('');
+  const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
   // Handle analyze button click
   const handleAnalyze = async () => {
     if (!selectedCompany.trim()) {
@@ -465,9 +473,9 @@ export default function IRISAnalyticsDashboard() {
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#f0f0f0' }}>
+    <div className="min-h-screen bg-background transition-colors duration-300">
       {/* Enhanced Gradient Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 opacity-30 pointer-events-none"></div>
+      <div className="fixed inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 opacity-30 dark:opacity-5 pointer-events-none"></div>
 
       <style jsx>{`
         .neumorphic-card {
@@ -495,7 +503,21 @@ export default function IRISAnalyticsDashboard() {
         }
         .neumorphic-button:hover {
           transform: translateY(-2px);
-          box-shadow: 6px 6px 12px #d0d0d0, -6px -6px 12px #ffffff;
+          box-shadow: 6px 6px 12px var(--shadow-color-1, #d0d0d0), -6px -6px 12px var(--shadow-color-2, #ffffff);
+        }
+        :global(.dark) .neumorphic-card {
+          box-shadow: 8px 8px 16px rgba(0,0,0,0.3), -8px -8px 16px rgba(255,255,255,0.05) !important;
+        }
+        :global(.dark) .neumorphic-card:hover {
+          box-shadow: 12px 12px 24px rgba(0,0,0,0.4), -12px -12px 24px rgba(255,255,255,0.05) !important;
+        }
+        :global(.dark) .neumorphic-button {
+          box-shadow: 4px 4px 8px rgba(0,0,0,0.3), -4px -4px 8px rgba(255,255,255,0.05) !important;
+          background: var(--card);
+          color: var(--foreground);
+        }
+        :global(.dark) .neumorphic-button:hover {
+           box-shadow: 6px 6px 12px rgba(0,0,0,0.4), -6px -6px 12px rgba(255,255,255,0.05) !important;
         }
         .glass-morphism {
           background: rgba(255, 255, 255, 0.25);
@@ -545,12 +567,12 @@ export default function IRISAnalyticsDashboard() {
       `}</style>
 
       {/* Sidebar Navigation */}
-      <div className="sidebar neumorphic-card" style={{ background: '#f0f0f0', boxShadow: '8px 0 16px #d0d0d0, -8px 0 16px #ffffff' }}>
+      <div className="sidebar neumorphic-card bg-sidebar dark:bg-sidebar border-r border-border/50">
         <div className="p-6 h-full flex flex-col">
           {/* Sidebar Header */}
           <div className="mb-8">
-            <h1 className="text-xl font-bold mb-2" style={{ color: '#333' }}>IRIS Analytics</h1>
-            <p className="text-sm" style={{ color: '#666' }}>Financial Forensics Platform</p>
+            <h1 className="text-xl font-bold mb-2 text-foreground">IRIS Analytics</h1>
+            <p className="text-sm text-muted-foreground">Financial Forensics Platform</p>
           </div>
 
           {/* Navigation Tabs */}
@@ -564,7 +586,7 @@ export default function IRISAnalyticsDashboard() {
                 style={
                   activeTab === item.toLowerCase()
                     ? { background: 'linear-gradient(135deg, #f2a09e 0%, #e89694 100%)', boxShadow: '4px 4px 8px #d89592, -4px -4px 8px #ffcfc8', color: '#fff' }
-                    : { color: '#666' }
+                    : { color: 'var(--muted-foreground)' }
                 }
               >
                 {item}
@@ -576,14 +598,18 @@ export default function IRISAnalyticsDashboard() {
           <div className="space-y-2 mt-8">
             <button
               className="w-full px-4 py-3 rounded-xl font-medium transition-all neumorphic-button"
-              style={{ background: '#f0f0f0', boxShadow: '4px 4px 8px #d0d0d0, -4px -4px 8px #ffffff', color: '#666' }}
+              style={{ background: '#f0f0f0', boxShadow: '4px 4px 8px #d0d0d0, -4px -4px 8px #ffffff', color: 'var(--muted-foreground)' }}
             >
               Export Data
             </button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <span className="text-sm font-medium text-muted-foreground">Theme</span>
+            </div>
             <button
               onClick={() => router.push('/')}
               className="w-full px-4 py-3 rounded-xl font-medium transition-all neumorphic-button"
-              style={{ background: '#f0f0f0', boxShadow: '4px 4px 8px #d0d0d0, -4px -4px 8px #ffffff', color: '#666' }}
+              style={{ background: '#f0f0f0', boxShadow: '4px 4px 8px #d0d0d0, -4px -4px 8px #ffffff', color: 'var(--muted-foreground)' }}
             >
               ← Home
             </button>
@@ -594,7 +620,7 @@ export default function IRISAnalyticsDashboard() {
       {/* Home Page Navbar */}
       <div className="relative z-50">
         <CardNav
-          logo="/logo.svg"
+          logo="/logo.png"
           logoAlt="I.R.I.S."
           items={navItems}
           className="-mt-2"
@@ -611,13 +637,13 @@ export default function IRISAnalyticsDashboard() {
           {/* Search & Filter Section */}
           <div className="mb-8 mt-8">
             <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-              background: 'rgba(255, 255, 255, 0.8)',
+              background: 'var(--card)',
               backdropFilter: 'blur(20px)',
               boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)'
             }}>
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1">
-                  <label className="block text-sm font-semibold mb-3" style={{ color: '#1e293b' }}>Company Analysis</label>
+                  <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--foreground)' }}>Company Analysis</label>
                   <div className="relative">
                     <input
                       type="text"
@@ -627,11 +653,10 @@ export default function IRISAnalyticsDashboard() {
                       placeholder="Enter NSE/BSE symbol (e.g., RELIANCE.NS, TCS.NS)"
                       className="w-full px-6 py-4 rounded-2xl text-base font-medium transition-all duration-300"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: 'var(--card)', color: 'var(--foreground)',
                         boxShadow: 'inset 8px 8px 16px rgba(0,0,0,0.1), inset -8px -8px 16px rgba(255,255,255,0.9)',
                         border: 'none',
-                        outline: 'none',
-                        color: '#1e293b'
+                        outline: 'none'
                       }}
                       disabled={isAnalyzing}
                     />
@@ -662,7 +687,7 @@ export default function IRISAnalyticsDashboard() {
                         Analyzing...
                       </div>
                     ) : (
-                      '🚀 Analyze'
+                      'Analyze'
                     )}
                   </button>
                   <button
@@ -670,9 +695,9 @@ export default function IRISAnalyticsDashboard() {
                     disabled={isAnalyzing}
                     className="px-6 py-4 rounded-2xl font-semibold transition-all neumorphic-button"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.9)',
+                      background: 'var(--card)',
                       boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
-                      color: '#64748b',
+                      color: 'var(--muted-foreground)',
                       cursor: isAnalyzing ? 'not-allowed' : 'pointer',
                       opacity: isAnalyzing ? 0.6 : 1
                     }}
@@ -704,14 +729,14 @@ export default function IRISAnalyticsDashboard() {
           {comparisonCompanies.length > 0 && (
             <div className="mb-8">
               <div className="neumorphic-card rounded-3xl p-6 glass-morphism" style={{
-                background: 'rgba(255, 255, 255, 0.8)',
+                background: 'var(--card)',
                 backdropFilter: 'blur(20px)',
                 boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)'
               }}>
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-xl font-bold" style={{ color: '#1e293b' }}>Company Comparison</h3>
-                    <p className="text-sm font-medium" style={{ color: '#64748b' }}>
+                    <h3 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Company Comparison</h3>
+                    <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
                       {comparisonCompanies.length} companies selected for comparison
                     </p>
                   </div>
@@ -744,12 +769,12 @@ export default function IRISAnalyticsDashboard() {
                       key={index}
                       className="flex items-center gap-2 px-4 py-2 rounded-xl"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: 'var(--card)', color: 'var(--foreground)',
                         boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.1), inset -4px -4px 8px rgba(255,255,255,0.9)',
                         border: '1px solid rgba(123, 104, 238, 0.2)'
                       }}
                     >
-                      <span className="font-semibold" style={{ color: '#1e293b' }}>{company}</span>
+                      <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{company}</span>
                       <button
                         onClick={() => removeFromComparison(company)}
                         className="text-red-500 hover:text-red-700 text-lg font-bold"
@@ -768,11 +793,10 @@ export default function IRISAnalyticsDashboard() {
                       placeholder="Add company symbol..."
                       className="flex-1 px-4 py-2 rounded-xl"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: 'var(--card)', color: 'var(--foreground)',
                         boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.1), inset -6px -6px 12px rgba(255,255,255,0.9)',
                         border: 'none',
-                        outline: 'none',
-                        color: '#1e293b'
+                        outline: 'none'
                       }}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter') {
@@ -794,7 +818,7 @@ export default function IRISAnalyticsDashboard() {
                       }}
                       className="px-4 py-2 rounded-xl font-semibold transition-all neumorphic-button"
                       style={{
-                        background: 'rgba(255, 255, 255, 0.9)',
+                        background: 'var(--card)',
                         boxShadow: '6px 6px 12px rgba(0,0,0,0.1), -6px -6px 12px rgba(255,255,255,0.9)',
                         color: '#7B68EE'
                       }}
@@ -810,46 +834,40 @@ export default function IRISAnalyticsDashboard() {
             <div className="mb-6">
               <div className="neumorphic-card rounded-3xl p-8 text-center" style={{ background: '#f0f0f0', boxShadow: '12px 12px 24px #d0d0d0, -12px -12px 24px #ffffff' }}>
                 <div className="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto mb-4" style={{ borderColor: '#f2a09e' }}></div>
-                <h3 className="text-xl font-bold mb-2" style={{ color: '#333' }}>Analyzing {selectedCompany}...</h3>
-                <p className="text-sm" style={{ color: '#666' }}>Running forensic analysis and risk assessment</p>
+                <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Analyzing {selectedCompany}...</h3>
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Running forensic analysis and risk assessment</p>
               </div>
             </div>
           )}
 
           {/* Stats Grid */}
           {analysisData && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
               {[
                 {
                   label: 'Risk Score',
                   value: `${analysisData.risk_assessment?.overall_risk_score || 'N/A'}/100`,
                   color: '#FF6B9D',
-                  icon: '⚠️'
+                  icon: <AlertTriangle className="w-6 h-6 animate-pulse" />
                 },
                 {
                   label: 'Forensic Metrics',
                   value: '29',
                   color: '#7B68EE',
-                  icon: '🔍'
-                },
-                {
-                  label: 'Anomalies Found',
-                  value: analysisData.anomaly_detection?.anomalies_detected || '0',
-                  color: '#f2a09e',
-                  icon: '🚨'
+                  icon: <Search className="w-6 h-6 hover:animate-bounce" />
                 },
                 {
                   label: 'Compliance',
                   value: `${analysisData.compliance_assessment?.overall_compliance_score || 'N/A'}%`,
                   color: '#4ade80',
-                  icon: '✓'
+                  icon: <ShieldCheck className="w-6 h-6 animate-pulse" />
                 },
               ].map((stat, index) => (
                 <div
                   key={index}
                   className="neumorphic-card rounded-3xl p-6 group"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
+                    background: 'var(--card)', color: 'var(--foreground)',
                     backdropFilter: 'blur(10px)',
                     boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)',
                     border: `2px solid ${stat.color}20`
@@ -867,8 +885,8 @@ export default function IRISAnalyticsDashboard() {
                         {stat.icon}
                       </div>
                       <div>
-                        <p className="text-sm font-medium" style={{ color: '#64748b' }}>{stat.label}</p>
-                        <p className="text-2xl font-bold" style={{ color: '#1e293b' }}>{stat.value}</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>{stat.label}</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>{stat.value}</p>
                       </div>
                     </div>
                     <div
@@ -919,7 +937,7 @@ export default function IRISAnalyticsDashboard() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-2xl font-bold" style={{ color: '#1e293b' }}>AI Risk Intelligence Summary</h3>
+                        <h3 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>AI Risk Intelligence Summary</h3>
                         <span className="px-3 py-1 rounded-full text-xs font-bold" style={{
                           background: 'linear-gradient(135deg, #FF6B9D 0%, #ef4444 100%)',
                           color: '#fff'
@@ -927,28 +945,28 @@ export default function IRISAnalyticsDashboard() {
                           Powered by Gemini 2.0
                         </span>
                       </div>
-                      <p className="text-sm font-medium mb-4" style={{ color: '#64748b' }}>
+                      <p className="text-sm font-medium mb-4" style={{ color: 'var(--muted-foreground)' }}>
                         Multi-dimensional risk evaluation across 6 critical investment categories
                       </p>
                       <div className="prose prose-slate max-w-none">
                         <div className="p-6 rounded-2xl" style={{
-                          background: 'rgba(255, 255, 255, 0.8)',
+                          background: 'var(--card)',
                           boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)'
                         }}>
                           {isLoadingRiskSummary ? (
                             <div className="flex items-center justify-center py-8">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-600 mr-3"></div>
-                              <span className="text-base" style={{ color: '#64748b' }}>Generating AI risk intelligence...</span>
+                              <span className="text-base" style={{ color: 'var(--muted-foreground)' }}>Generating AI risk intelligence...</span>
                             </div>
                           ) : riskSummary ? (
                             <div
                               className="text-base leading-relaxed"
-                              style={{ color: '#1e293b' }}
+                              style={{ color: 'var(--foreground)' }}
                               dangerouslySetInnerHTML={{ __html: riskSummary }}
                             />
                           ) : (
                             <>
-                              <p className="text-base leading-relaxed mb-4" style={{ color: '#1e293b' }}>
+                              <p className="text-base leading-relaxed mb-4" style={{ color: 'var(--foreground)' }}>
                                 <strong>Overall Risk Profile:</strong> {selectedCompany} presents an overall risk score of{' '}
                                 <strong style={{
                                   color: (analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? '#ef4444' :
@@ -961,7 +979,7 @@ export default function IRISAnalyticsDashboard() {
                                 This assessment is derived from a comprehensive analysis of financial stability, market volatility,
                                 operational efficiency, and regulatory compliance factors.
                               </p>
-                              <p className="text-base leading-relaxed mb-4" style={{ color: '#1e293b' }}>
+                              <p className="text-base leading-relaxed mb-4" style={{ color: 'var(--foreground)' }}>
                                 <strong>Investment Recommendation:</strong>{' '}
                                 {(analysisData.risk_assessment?.overall_risk_score || 0) < 40
                                   ? 'The company demonstrates strong fundamentals with low risk exposure, making it suitable for conservative investors seeking stable returns. The risk-reward profile favors long-term capital appreciation with minimal downside volatility.'
@@ -970,7 +988,7 @@ export default function IRISAnalyticsDashboard() {
                                     : 'The company shows elevated risk indicators that warrant cautious approach. Recommended only for aggressive investors with high risk appetite and diversified portfolios. Enhanced monitoring and stop-loss strategies are advised.'
                                 }
                               </p>
-                              <p className="text-base leading-relaxed mb-4" style={{ color: '#1e293b' }}>
+                              <p className="text-base leading-relaxed mb-4" style={{ color: 'var(--foreground)' }}>
                                 <strong>Key Risk Drivers:</strong> The primary risk factors include{' '}
                                 {analysisData.risk_assessment?.category_scores ?
                                   Object.entries(analysisData.risk_assessment.category_scores)
@@ -982,7 +1000,7 @@ export default function IRISAnalyticsDashboard() {
                                 }. These factors collectively contribute to the overall risk profile and require continuous monitoring
                                 for early warning signals of deteriorating conditions.
                               </p>
-                              <p className="text-base leading-relaxed" style={{ color: '#1e293b' }}>
+                              <p className="text-base leading-relaxed" style={{ color: 'var(--foreground)' }}>
                                 <strong>Monitoring Frequency:</strong> Based on the current risk assessment, we recommend{' '}
                                 <strong style={{ color: '#7B68EE' }}>
                                   {(analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? 'WEEKLY' :
@@ -1007,18 +1025,18 @@ export default function IRISAnalyticsDashboard() {
 
                 {/* Dedicated Risk Assessment Section */}
                 <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-                  background: 'rgba(255, 255, 255, 0.9)',
+                  background: 'var(--card)', color: 'var(--foreground)',
                   backdropFilter: 'blur(20px)',
                   boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)',
                   border: '2px solid rgba(255, 107, 157, 0.2)'
                 }}>
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Risk Assessment</h2>
-                      <p className="text-sm font-medium" style={{ color: '#64748b' }}>6-category weighted analysis</p>
+                      <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Risk Assessment</h2>
+                      <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>6-category weighted analysis</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-sm font-medium" style={{ color: '#64748b' }}>
+                      <div className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
                         Powered by Agent 3
                       </div>
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-500 to-red-600 flex items-center justify-center">
@@ -1030,35 +1048,15 @@ export default function IRISAnalyticsDashboard() {
                   {/* Risk Score Overview */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     <div className="flex items-center justify-center">
-                      <div
-                        className="w-48 h-48 rounded-full flex items-center justify-center relative"
-                        style={{
-                          background: 'linear-gradient(135deg, #FF6B9D 0%, #FF4081 100%)',
-                          boxShadow: '12px 12px 24px rgba(255, 107, 157, 0.3), -12px -12px 24px rgba(255, 255, 255, 0.2)'
-                        }}
-                      >
-                        <div
-                          className="w-40 h-40 rounded-full flex flex-col items-center justify-center relative"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.95)',
-                            boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.1), inset -6px -6px 12px rgba(255,255,255,0.9)'
-                          }}
-                        >
-                          <span className="text-5xl font-bold mb-1" style={{ color: '#FF6B9D' }}>
-                            {analysisData.risk_assessment?.overall_risk_score || 'N/A'}
-                          </span>
-                          <span className="text-sm font-semibold" style={{ color: '#64748b' }}>Risk Score</span>
-                          <div className="absolute -top-2 -right-2">
-                            <div className="w-6 h-6 rounded-full bg-white shadow-lg flex items-center justify-center">
-                              <span className="text-xs">💯</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <GaugeChart
+                        value={Number(analysisData.risk_assessment?.overall_risk_score) || 0}
+                        label="Risk Score"
+                        size={280}
+                      />
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Risk Categories</h3>
+                      <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Risk Categories</h3>
                       {Object.entries(analysisData.risk_assessment?.category_scores || {}).map(([category, data]: [string, any], index) => {
                         const categoryName = category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         const score = Math.round(data.score || 0);
@@ -1067,13 +1065,13 @@ export default function IRISAnalyticsDashboard() {
                         return (
                           <div key={index} className="group">
                             <div className="flex justify-between text-sm mb-2">
-                              <span className="font-semibold" style={{ color: '#1e293b' }}>{categoryName}</span>
-                              <span className="font-bold" style={{ color: '#64748b' }}>{score}%</span>
+                              <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{categoryName}</span>
+                              <span className="font-bold" style={{ color: 'var(--muted-foreground)' }}>{score}%</span>
                             </div>
                             <div
                               className="h-3 rounded-full overflow-hidden relative"
                               style={{
-                                background: 'rgba(255, 255, 255, 0.8)',
+                                background: 'var(--card)',
                                 boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.9)'
                               }}
                             >
@@ -1097,111 +1095,125 @@ export default function IRISAnalyticsDashboard() {
                       })}
                     </div>
                   </div>
+                </div>
 
-                  {/* AnomalyHeatmap Chart */}
-                  <div className="neumorphic-card rounded-3xl p-8 mb-8" style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(20px)',
-                    boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)',
-                    border: '2px solid rgba(255, 107, 157, 0.2)'
+                {/* Shell Company Hunter (Forensic Graph) */}
+                <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
+                  background: 'var(--card)', color: 'var(--foreground)',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)',
+                  border: '2px solid rgba(255, 107, 157, 0.2)'
+                }}>
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Shell Company Hunter</h3>
+                    <p style={{ color: 'var(--muted-foreground)' }}>AI-detected suspicious network patterns and circular trading</p>
+                  </div>
+                  <ForensicGraph companySymbol={selectedCompany || "HIGHRISK"} />
+                </div>
+
+                {/* AnomalyHeatmap Chart */}
+                <div className="neumorphic-card rounded-3xl p-8 mb-8" style={{
+                  background: 'var(--card)', color: 'var(--foreground)',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)',
+                  border: '2px solid rgba(255, 107, 157, 0.2)'
+                }}>
+                  <h3 className="text-2xl font-bold mb-6" style={{ color: 'var(--foreground)' }}>Anomaly Detection Heatmap</h3>
+                  <AnomalyHeatmap
+                    data={{
+                      anomalyData: [
+                        { dimension: 'Revenue', category: 'Q1', value: 0.8, severity: 'high' },
+                        { dimension: 'Expenses', category: 'Q1', value: 0.6, severity: 'medium' },
+                        { dimension: 'Assets', category: 'Q1', value: 0.4, severity: 'low' },
+                        { dimension: 'Liabilities', category: 'Q1', value: 0.9, severity: 'high' },
+                        { dimension: 'Cash Flow', category: 'Q1', value: 0.7, severity: 'high' },
+                        { dimension: 'Inventory', category: 'Q1', value: 0.5, severity: 'medium' },
+                        { dimension: 'Receivables', category: 'Q1', value: 0.3, severity: 'low' },
+                        { dimension: 'Payables', category: 'Q1', value: 0.2, severity: 'low' },
+                        { dimension: 'Equity', category: 'Q1', value: 0.1, severity: 'low' },
+                        { dimension: 'Profit Margins', category: 'Q1', value: 0.6, severity: 'medium' }
+                      ]
+                    }}
+                    dimensions={['Revenue', 'Expenses', 'Assets', 'Liabilities', 'Cash Flow', 'Inventory', 'Receivables', 'Payables', 'Equity', 'Profit Margins']}
+                    companyName={selectedCompany}
+                  />
+                </div>
+
+                {/* Risk Factors & Recommendations */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="neumorphic-card rounded-2xl p-6" style={{
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
                   }}>
-                    <h3 className="text-2xl font-bold mb-6" style={{ color: '#1e293b' }}>Anomaly Detection Heatmap</h3>
-                    <AnomalyHeatmap
-                      data={{
-                        anomalyData: [
-                          { dimension: 'Revenue', category: 'Q1', value: 0.8, severity: 'high' },
-                          { dimension: 'Expenses', category: 'Q1', value: 0.6, severity: 'medium' },
-                          { dimension: 'Assets', category: 'Q1', value: 0.4, severity: 'low' },
-                          { dimension: 'Liabilities', category: 'Q1', value: 0.9, severity: 'high' },
-                          { dimension: 'Cash Flow', category: 'Q1', value: 0.7, severity: 'high' },
-                          { dimension: 'Inventory', category: 'Q1', value: 0.5, severity: 'medium' },
-                          { dimension: 'Receivables', category: 'Q1', value: 0.3, severity: 'low' },
-                          { dimension: 'Payables', category: 'Q1', value: 0.2, severity: 'low' },
-                          { dimension: 'Equity', category: 'Q1', value: 0.1, severity: 'low' },
-                          { dimension: 'Profit Margins', category: 'Q1', value: 0.6, severity: 'medium' }
-                        ]
-                      }}
-                      dimensions={['Revenue', 'Expenses', 'Assets', 'Liabilities', 'Cash Flow', 'Inventory', 'Receivables', 'Payables', 'Equity', 'Profit Margins']}
-                      companyName={selectedCompany}
-                    />
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Risk Factors</h3>
+                    <div className="space-y-3">
+                      {analysisData.risk_assessment?.risk_factors?.slice(0, 5).map((factor: string, index: number) => (
+                        <div key={index} className="flex items-center gap-3 p-3 rounded-xl" style={{
+                          background: 'var(--card)',
+                          boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
+                          border: '1px solid rgba(255, 107, 157, 0.2)'
+                        }}>
+                          <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white text-sm">⚠️</span>
+                          </div>
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>{factor}</span>
+                        </div>
+                      )) || (
+                          <div className="text-center py-8">
+                            <p className="text-gray-500">No specific risk factors identified</p>
+                          </div>
+                        )}
+                    </div>
                   </div>
 
-                  {/* Risk Factors & Recommendations */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="neumorphic-card rounded-2xl p-6" style={{
-                      background: 'rgba(255, 255, 255, 0.7)',
-                      boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                  <div className="neumorphic-card rounded-2xl p-6" style={{
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                  }}>
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Investment Recommendation</h3>
+                    <div className="p-4 rounded-xl mb-4" style={{
+                      background: 'var(--card)',
+                      boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
+                      border: '2px solid rgba(74, 222, 128, 0.2)'
                     }}>
-                      <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Risk Factors</h3>
-                      <div className="space-y-3">
-                        {analysisData.risk_assessment?.risk_factors?.slice(0, 5).map((factor: string, index: number) => (
-                          <div key={index} className="flex items-center gap-3 p-3 rounded-xl" style={{
-                            background: 'rgba(255, 255, 255, 0.8)',
-                            boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                            border: '1px solid rgba(255, 107, 157, 0.2)'
-                          }}>
-                            <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-sm">⚠️</span>
-                            </div>
-                            <span className="font-medium" style={{ color: '#1e293b' }}>{factor}</span>
-                          </div>
-                        )) || (
-                            <div className="text-center py-8">
-                              <p className="text-gray-500">No specific risk factors identified</p>
-                            </div>
-                          )}
-                      </div>
+                      <p className="font-semibold text-lg mb-2" style={{ color: 'var(--foreground)' }}>
+                        {analysisData.risk_assessment?.risk_level || 'MEDIUM'} Risk Profile
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                        {analysisData.risk_assessment?.investment_recommendation || 'Additional analysis recommended for investment decisions.'}
+                      </p>
                     </div>
 
-                    <div className="neumorphic-card rounded-2xl p-6" style={{
-                      background: 'rgba(255, 255, 255, 0.7)',
-                      boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
-                    }}>
-                      <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Investment Recommendation</h3>
-                      <div className="p-4 rounded-xl mb-4" style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 p-3 rounded-xl" style={{
+                        background: 'var(--card)',
                         boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                        border: '2px solid rgba(74, 222, 128, 0.2)'
+                        border: '1px solid rgba(34, 197, 94, 0.2)'
                       }}>
-                        <p className="font-semibold text-lg mb-2" style={{ color: '#1e293b' }}>
-                          {analysisData.risk_assessment?.risk_level || 'MEDIUM'} Risk Profile
-                        </p>
-                        <p className="text-sm" style={{ color: '#64748b' }}>
-                          {analysisData.risk_assessment?.investment_recommendation || 'Additional analysis recommended for investment decisions.'}
-                        </p>
+                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-sm">📅</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold" style={{ color: 'var(--foreground)' }}>Monitoring Frequency</p>
+                          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                            {analysisData.risk_assessment?.monitoring_frequency || 'QUARTERLY'} reviews recommended
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-xl" style={{
-                          background: 'rgba(255, 255, 255, 0.8)',
-                          boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)'
-                        }}>
-                          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-sm">📅</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold" style={{ color: '#1e293b' }}>Monitoring Frequency</p>
-                            <p className="text-sm" style={{ color: '#64748b' }}>
-                              {analysisData.risk_assessment?.monitoring_frequency || 'QUARTERLY'} reviews recommended
-                            </p>
-                          </div>
+                      <div className="flex items-center gap-3 p-3 rounded-xl" style={{
+                        background: 'var(--card)',
+                        boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
+                        border: '1px solid rgba(139, 92, 246, 0.2)'
+                      }}>
+                        <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-sm">🎯</span>
                         </div>
-
-                        <div className="flex items-center gap-3 p-3 rounded-xl" style={{
-                          background: 'rgba(255, 255, 255, 0.8)',
-                          boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                          border: '1px solid rgba(139, 92, 246, 0.2)'
-                        }}>
-                          <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-sm">🎯</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold" style={{ color: '#1e293b' }}>Next Review</p>
-                            <p className="text-sm" style={{ color: '#64748b' }}>
-                              {(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)).toLocaleDateString()}
-                            </p>
-                          </div>
+                        <div>
+                          <p className="font-semibold" style={{ color: 'var(--foreground)' }}>Next Review</p>
+                          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
+                            {(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1215,19 +1227,19 @@ export default function IRISAnalyticsDashboard() {
           {
             activeTab === 'reports' && analysisData && (
               <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-                background: 'rgba(255, 255, 255, 0.9)',
+                background: 'var(--card)', color: 'var(--foreground)',
                 backdropFilter: 'blur(20px)',
                 boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)'
               }}>
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Generate Reports</h2>
-                    <p className="text-sm font-medium" style={{ color: '#64748b' }}>
+                    <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Generate Reports</h2>
+                    <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
                       Comprehensive analysis reports for {selectedCompany}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium" style={{ color: '#64748b' }}>
+                    <div className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
                       Generated by Gemini 2.0 AI
                     </div>
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -1239,17 +1251,17 @@ export default function IRISAnalyticsDashboard() {
                 {/* Report Generation Options */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                   <div className="neumorphic-card rounded-2xl p-6" style={{
-                    background: 'rgba(255, 255, 255, 0.8)',
+                    background: 'var(--card)',
                     boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
                     border: '2px solid rgba(239, 68, 68, 0.2)'
                   }}>
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
-                        <span className="text-white text-xl">📄</span>
+                        <FileText className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg" style={{ color: '#1e293b' }}>PDF Report</h3>
-                        <p className="text-sm" style={{ color: '#64748b' }}>Professional PDF format</p>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>PDF Report</h3>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Professional PDF format</p>
                       </div>
                     </div>
                     <button
@@ -1276,17 +1288,17 @@ export default function IRISAnalyticsDashboard() {
                   </div>
 
                   <div className="neumorphic-card rounded-2xl p-6" style={{
-                    background: 'rgba(255, 255, 255, 0.8)',
+                    background: 'var(--card)',
                     boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
                     border: '2px solid rgba(16, 185, 129, 0.2)'
                   }}>
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                        <span className="text-white text-xl">📊</span>
+                        <BarChart3 className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg" style={{ color: '#1e293b' }}>Excel Report</h3>
-                        <p className="text-sm" style={{ color: '#64748b' }}>Data analysis spreadsheet</p>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>Excel Report</h3>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Data analysis spreadsheet</p>
                       </div>
                     </div>
                     <button
@@ -1313,17 +1325,17 @@ export default function IRISAnalyticsDashboard() {
                   </div>
 
                   <div className="neumorphic-card rounded-2xl p-6" style={{
-                    background: 'rgba(255, 255, 255, 0.8)',
+                    background: 'var(--card)',
                     boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
                     border: '2px solid rgba(139, 92, 246, 0.2)'
                   }}>
                     <div className="flex items-center gap-4 mb-4">
                       <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                        <span className="text-white text-xl">🚀</span>
+                        <FileBarChart className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="font-bold text-lg" style={{ color: '#1e293b' }}>Complete Report</h3>
-                        <p className="text-sm" style={{ color: '#64748b' }}>PDF + Excel + AI Summary</p>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>Complete Report</h3>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>PDF + Excel + AI Summary</p>
                       </div>
                     </div>
                     <button
@@ -1353,14 +1365,14 @@ export default function IRISAnalyticsDashboard() {
                 {/* Recent Reports */}
                 {generatedReports.length > 0 && (
                   <div className="mt-8">
-                    <h3 className="text-2xl font-bold mb-6" style={{ color: '#1e293b' }}>Recent Reports</h3>
+                    <h3 className="text-2xl font-bold mb-6" style={{ color: 'var(--foreground)' }}>Recent Reports</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {generatedReports.map((report, index) => (
                         <div
                           key={index}
                           className="neumorphic-card rounded-2xl p-6 group"
                           style={{
-                            background: 'rgba(255, 255, 255, 0.8)',
+                            background: 'var(--card)',
                             boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
                             border: '2px solid rgba(139, 92, 246, 0.2)'
                           }}
@@ -1368,15 +1380,17 @@ export default function IRISAnalyticsDashboard() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                <span className="text-white text-sm font-bold">
-                                  {report.format === 'pdf' ? '📄' : '📊'}
-                                </span>
+                                {report.format === 'pdf' ? (
+                                  <FileText className="w-5 h-5 text-white" />
+                                ) : (
+                                  <BarChart3 className="w-5 h-5 text-white" />
+                                )}
                               </div>
                               <div>
-                                <p className="font-bold" style={{ color: '#1e293b' }}>
+                                <p className="font-bold" style={{ color: 'var(--foreground)' }}>
                                   {report.format.toUpperCase()} Report
                                 </p>
-                                <p className="text-sm" style={{ color: '#64748b' }}>
+                                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                   {new Date(report.generatedAt).toLocaleDateString()}
                                 </p>
                               </div>
@@ -1394,10 +1408,10 @@ export default function IRISAnalyticsDashboard() {
                             </button>
                           </div>
                           <div className="flex items-center justify-between text-sm">
-                            <span style={{ color: '#64748b' }}>
+                            <span style={{ color: 'var(--muted-foreground)' }}>
                               {(report.fileSize / 1024).toFixed(1)} KB
                             </span>
-                            <span style={{ color: '#64748b' }}>
+                            <span style={{ color: 'var(--muted-foreground)' }}>
                               {report.wordCount || 'N/A'} words
                             </span>
                           </div>
@@ -1411,12 +1425,12 @@ export default function IRISAnalyticsDashboard() {
                 {!analysisData && (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center mx-auto mb-4">
-                      <span className="text-2xl">📄</span>
+                      <FileText className="w-8 h-8 text-white animate-pulse" />
                     </div>
-                    <h3 className="text-xl font-bold mb-2" style={{ color: '#1e293b' }}>
+                    <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
                       No Analysis Available
                     </h3>
-                    <p className="text-sm" style={{ color: '#64748b' }}>
+                    <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                       Please analyze a company first to generate reports
                     </p>
                   </div>
@@ -1427,11 +1441,12 @@ export default function IRISAnalyticsDashboard() {
           {
             analysisData && activeTab === 'overview' ? (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
                 {/* Forensic Analysis Card */}
                 <div
                   className="neumorphic-card rounded-3xl p-8 lg:col-span-2 group"
                   style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
+                    background: 'var(--card)', color: 'var(--foreground)',
                     backdropFilter: 'blur(15px)',
                     boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
                     border: '2px solid rgba(123, 104, 238, 0.2)'
@@ -1439,10 +1454,17 @@ export default function IRISAnalyticsDashboard() {
                 >
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Forensic Analysis</h2>
-                      <p className="text-sm font-medium" style={{ color: '#64748b' }}>29 comprehensive financial metrics</p>
+                      <div className="flex items-center gap-4 mb-2">
+                        <h2 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Forensic Analysis</h2>
+                        <TextTicker
+                          texts={["SYSTEM ONLINE", "MONITORING TRANSACTIONS", "RISK: LOW", "ANALYZING PATTERNS"]}
+                          className="hidden md:block px-3 py-1 rounded-md bg-black/5 dark:bg-white/5 text-xs font-bold text-indigo-500"
+                        />
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>29 comprehensive financial metrics</p>
                     </div>
                     <button
+                      onClick={() => setIsFormulasModalOpen(true)}
                       className="px-6 py-3 rounded-2xl text-sm font-semibold transition-all neumorphic-button"
                       style={{
                         background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
@@ -1453,6 +1475,12 @@ export default function IRISAnalyticsDashboard() {
                       📊 View Details
                     </button>
                   </div>
+
+                  <ForensicFormulasModal
+                    isOpen={isFormulasModalOpen}
+                    onClose={() => setIsFormulasModalOpen(false)}
+                    analysisData={analysisData}
+                  />
 
                   {/* Metrics List */}
                   <div className="space-y-4">
@@ -1499,12 +1527,18 @@ export default function IRISAnalyticsDashboard() {
                               boxShadow: `0 0 15px ${metric.color}30`
                             }}
                           >
-                            <span className="text-white font-bold text-sm">
-                              {metric.name.split(' ')[0].charAt(0)}
-                            </span>
+                            {metric.name.includes('Z-Score') ? (
+                              <Activity className="w-5 h-5 text-white" />
+                            ) : metric.name.includes('M-Score') ? (
+                              <Search className="w-5 h-5 text-white" />
+                            ) : metric.name.includes('Debt') ? (
+                              <PieChart className="w-5 h-5 text-white" />
+                            ) : (
+                              <BarChart3 className="w-5 h-5 text-white" />
+                            )}
                           </div>
                           <div>
-                            <p className="font-bold text-base mb-1" style={{ color: '#1e293b' }}>{metric.name}</p>
+                            <p className="font-bold text-base mb-1" style={{ color: 'var(--foreground)' }}>{metric.name}</p>
                             <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
                               background: `${metric.color}15`,
                               color: metric.color,
@@ -1531,85 +1565,12 @@ export default function IRISAnalyticsDashboard() {
                   </div>
                 </div>
 
-                {/* Risk Assessment Card */}
-                <div
-                  className="neumorphic-card rounded-3xl p-8"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(15px)',
-                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
-                    border: '2px solid rgba(255, 107, 157, 0.2)'
-                  }}
-                >
-                  <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Risk Assessment</h2>
-                  <p className="text-sm font-medium mb-8" style={{ color: '#64748b' }}>6-category weighted analysis</p>
-
-                  {/* Risk Score Circle */}
-                  <div className="flex items-center justify-center mb-8">
-                    <div
-                      className="w-48 h-48 rounded-full flex items-center justify-center relative"
-                      style={{
-                        background: 'linear-gradient(135deg, #FF6B9D 0%, #FF4081 100%)',
-                        boxShadow: '12px 12px 24px rgba(255, 107, 157, 0.3), -12px -12px 24px rgba(255, 255, 255, 0.2)'
-                      }}
-                    >
-                      <div
-                        className="w-40 h-40 rounded-full flex flex-col items-center justify-center relative"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.95)',
-                          boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.1), inset -6px -6px 12px rgba(255,255,255,0.9)'
-                        }}
-                      >
-                        <span className="text-5xl font-bold mb-1" style={{ color: '#FF6B9D' }}>
-                          {analysisData.risk_assessment?.overall_risk_score || 'N/A'}
-                        </span>
-                        <span className="text-sm font-semibold" style={{ color: '#64748b' }}>Risk Score</span>
-                        <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 rounded-full bg-white shadow-lg flex items-center justify-center">
-                            <span className="text-xs">💯</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Risk Categories */}
-                  <div className="space-y-3">
-                    {Object.entries(analysisData.risk_assessment?.category_scores || {}).slice(0, 4).map(([category, data]: [string, any], index) => ({
-                      category: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                      level: Math.round(data.score || 0)
-                    })).map((item, index) => (
-                      <div key={index} className="group">
-                        <div className="flex justify-between text-sm mb-2">
-                          <span className="font-semibold" style={{ color: '#1e293b' }}>{item.category}</span>
-                          <span className="font-bold" style={{ color: '#64748b' }}>{item.level}%</span>
-                        </div>
-                        <div
-                          className="h-3 rounded-full overflow-hidden relative"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.8)',
-                            boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.9)'
-                          }}
-                        >
-                          <div
-                            className="h-full rounded-full transition-all duration-1500 ease-out relative overflow-hidden"
-                            style={{
-                              width: `${item.level}%`,
-                              background: item.level > 70 ? 'linear-gradient(90deg, #FF6B9D, #FF4081)' : item.level > 50 ? 'linear-gradient(90deg, #7B68EE, #6A5ACD)' : 'linear-gradient(90deg, #4ade80, #22c55e)'
-                            }}
-                          >
-                            <div
-                              className="absolute inset-0 opacity-30"
-                              style={{
-                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                {/* Risk Assessment Dashboard Component */}
+                <RiskDashboard
+                  riskScore={null}
+                  analysisResult={analysisData}
+                  isLoading={isAnalyzing}
+                />
               </div>
             ) : null
           }
@@ -1618,18 +1579,18 @@ export default function IRISAnalyticsDashboard() {
           {
             activeTab === 'compliance' && analysisData && (
               <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-                background: 'rgba(255, 255, 255, 0.9)',
+                background: 'var(--card)', color: 'var(--foreground)',
                 backdropFilter: 'blur(20px)',
                 boxShadow: '20px 20px 40px rgba(0,0,0,0.1), -20px -20px 40px rgba(255,255,255,0.9)',
                 border: '2px solid rgba(34, 197, 94, 0.2)'
               }}>
                 <div className="flex items-center justify-between mb-8">
                   <div>
-                    <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Compliance Assessment</h2>
-                    <p className="text-sm font-medium" style={{ color: '#64748b' }}>Regulatory framework validation</p>
+                    <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Compliance Assessment</h2>
+                    <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>Regulatory framework validation</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium" style={{ color: '#64748b' }}>
+                    <div className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>
                       Powered by Agent 4
                     </div>
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
@@ -1658,7 +1619,7 @@ export default function IRISAnalyticsDashboard() {
                         <span className="text-5xl font-bold mb-1" style={{ color: '#22c55e' }}>
                           {analysisData.compliance_assessment?.overall_compliance_score || 'N/A'}
                         </span>
-                        <span className="text-sm font-semibold" style={{ color: '#64748b' }}>Compliance Score</span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>Compliance Score</span>
                         <div className="absolute -top-2 -right-2">
                           <div className="w-6 h-6 rounded-full bg-white shadow-lg flex items-center justify-center">
                             <span className="text-xs">%</span>
@@ -1669,22 +1630,24 @@ export default function IRISAnalyticsDashboard() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Framework Compliance</h3>
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Framework Compliance</h3>
                     {Object.entries(analysisData.compliance_assessment?.framework_scores || {}).map(([framework, data]: [string, any], index) => {
                       const frameworkName = framework.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                      const score = Math.round(data.score || 0);
+                      // Handle both object format (data.score) and direct number format
+                      const rawScore = typeof data === 'object' && data !== null ? data.score : data;
+                      const score = Math.round(Number(rawScore) || 0);
                       const color = score > 80 ? '#22c55e' : score > 60 ? '#7B68EE' : '#FF6B9D';
 
                       return (
                         <div key={index} className="group">
                           <div className="flex justify-between text-sm mb-2">
-                            <span className="font-semibold" style={{ color: '#1e293b' }}>{frameworkName}</span>
-                            <span className="font-bold" style={{ color: '#64748b' }}>{score}%</span>
+                            <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{frameworkName}</span>
+                            <span className="font-bold" style={{ color: 'var(--muted-foreground)' }}>{score}%</span>
                           </div>
                           <div
                             className="h-3 rounded-full overflow-hidden relative"
                             style={{
-                              background: 'rgba(255, 255, 255, 0.8)',
+                              background: 'var(--card)',
                               boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.9)'
                             }}
                           >
@@ -1715,18 +1678,18 @@ export default function IRISAnalyticsDashboard() {
                     background: 'rgba(255, 255, 255, 0.7)',
                     boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
                   }}>
-                    <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Compliance Violations</h3>
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Compliance Violations</h3>
                     <div className="space-y-3">
                       {analysisData.compliance_assessment?.violations?.slice(0, 5).map((violation: string, index: number) => (
                         <div key={index} className="flex items-center gap-3 p-3 rounded-xl" style={{
-                          background: 'rgba(255, 255, 255, 0.8)',
+                          background: 'var(--card)',
                           boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
                           border: '1px solid rgba(255, 107, 157, 0.2)'
                         }}>
                           <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-sm">⚠️</span>
                           </div>
-                          <span className="font-medium" style={{ color: '#1e293b' }}>{violation}</span>
+                          <span className="font-medium" style={{ color: 'var(--foreground)' }}>{violation}</span>
                         </div>
                       )) || (
                           <div className="text-center py-8">
@@ -1744,17 +1707,17 @@ export default function IRISAnalyticsDashboard() {
                     background: 'rgba(255, 255, 255, 0.7)',
                     boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
                   }}>
-                    <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Next Review Schedule</h3>
+                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Next Review Schedule</h3>
                     <div className="space-y-4">
                       <div className="p-4 rounded-xl" style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
+                        background: 'var(--card)',
                         boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
                         border: '2px solid rgba(34, 197, 94, 0.2)'
                       }}>
-                        <p className="font-semibold text-lg mb-2" style={{ color: '#1e293b' }}>
+                        <p className="font-semibold text-lg mb-2" style={{ color: 'var(--foreground)' }}>
                           {analysisData.compliance_assessment?.compliance_status || 'QUARTERLY'} Review Required
                         </p>
-                        <p className="text-sm" style={{ color: '#64748b' }}>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                           {analysisData.compliance_assessment?.overall_compliance_score > 80
                             ? 'Annual review sufficient due to strong compliance record'
                             : analysisData.compliance_assessment?.overall_compliance_score > 60
@@ -1765,7 +1728,7 @@ export default function IRISAnalyticsDashboard() {
                       </div>
 
                       <div className="flex items-center gap-3 p-3 rounded-xl" style={{
-                        background: 'rgba(255, 255, 255, 0.8)',
+                        background: 'var(--card)',
                         boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
                         border: '1px solid rgba(139, 92, 246, 0.2)'
                       }}>
@@ -1773,8 +1736,8 @@ export default function IRISAnalyticsDashboard() {
                           <span className="text-white text-sm">📅</span>
                         </div>
                         <div>
-                          <p className="font-semibold" style={{ color: '#1e293b' }}>Next Review Date</p>
-                          <p className="text-sm" style={{ color: '#64748b' }}>
+                          <p className="font-semibold" style={{ color: 'var(--foreground)' }}>Next Review Date</p>
+                          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                             {analysisData.compliance_assessment?.next_review_date || 'Q2 2025'}
                           </p>
                         </div>
@@ -1791,19 +1754,19 @@ export default function IRISAnalyticsDashboard() {
             comparisonData.length > 0 && (
               <div className="mb-8">
                 <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-                  background: 'rgba(255, 255, 255, 0.9)',
+                  background: 'var(--card)', color: 'var(--foreground)',
                   backdropFilter: 'blur(15px)',
                   boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
                   border: '2px solid rgba(123, 104, 238, 0.2)'
                 }}>
-                  <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Company Comparison</h2>
-                  <p className="text-sm font-medium mb-8" style={{ color: '#64748b' }}>
+                  <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>Company Comparison</h2>
+                  <p className="text-sm font-medium mb-8" style={{ color: 'var(--muted-foreground)' }}>
                     Side-by-side analysis of {comparisonData.length} companies
                   </p>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold" style={{ color: '#1e293b' }}>Risk Assessment</h3>
+                      <h3 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Risk Assessment</h3>
                       {comparisonData.map((company, index) => (
                         <div key={index} className="flex items-center justify-between p-4 rounded-2xl"
                           style={{
@@ -1812,8 +1775,8 @@ export default function IRISAnalyticsDashboard() {
                             border: '1px solid rgba(123, 104, 238, 0.2)'
                           }}>
                           <div>
-                            <p className="font-bold" style={{ color: '#1e293b' }}>{company.symbol}</p>
-                            <p className="text-sm" style={{ color: '#64748b' }}>
+                            <p className="font-bold" style={{ color: 'var(--foreground)' }}>{company.symbol}</p>
+                            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                               {company.data.risk_assessment?.risk_level || 'Unknown'} Risk
                             </p>
                           </div>
@@ -1825,7 +1788,7 @@ export default function IRISAnalyticsDashboard() {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold" style={{ color: '#1e293b' }}>Compliance Status</h3>
+                      <h3 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Compliance Status</h3>
                       {comparisonData.map((company, index) => (
                         <div key={index} className="flex items-center justify-between p-4 rounded-2xl"
                           style={{
@@ -1834,8 +1797,8 @@ export default function IRISAnalyticsDashboard() {
                             border: '1px solid rgba(34, 197, 94, 0.2)'
                           }}>
                           <div>
-                            <p className="font-bold" style={{ color: '#1e293b' }}>{company.symbol}</p>
-                            <p className="text-sm" style={{ color: '#64748b' }}>
+                            <p className="font-bold" style={{ color: 'var(--foreground)' }}>{company.symbol}</p>
+                            <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                               {company.data.compliance_assessment?.compliance_status?.replace(/_/g, ' ') || 'Unknown'}
                             </p>
                           </div>
@@ -1851,144 +1814,14 @@ export default function IRISAnalyticsDashboard() {
             )
           }
 
-          {/* Anomaly Detection Section */}
-          {
-            analysisData && (
-              <div
-                className="neumorphic-card rounded-3xl p-8 mb-8"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.9)',
-                  backdropFilter: 'blur(15px)',
-                  boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
-                  border: '2px solid rgba(34, 197, 94, 0.2)'
-                }}
-              >
-                <h2 className="text-3xl font-bold mb-2" style={{ color: '#1e293b' }}>Anomaly Detection</h2>
-                <p className="text-sm font-medium mb-8" style={{ color: '#64748b' }}>Advanced fraud detection algorithms</p>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    {
-                      title: "Benford's Law Analysis",
-                      status: analysisData.benford_analysis?.benford_analysis?.interpretation || 'Normal',
-                      severity: analysisData.benford_analysis?.benford_analysis?.is_anomalous ? 'High' : 'Low',
-                      color: analysisData.benford_analysis?.benford_analysis?.is_anomalous ? '#FF6B9D' : '#4ade80'
-                    },
-                    {
-                      title: 'Revenue Pattern',
-                      status: 'Normal',
-                      severity: 'Low',
-                      color: '#4ade80'
-                    },
-                    {
-                      title: 'Expense Irregularities',
-                      status: 'Review Required',
-                      severity: 'Medium',
-                      color: '#7B68EE'
-                    },
-                  ].map((anomaly, index) => (
-                    <div
-                      key={index}
-                      className="p-6 rounded-2xl group"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.7)',
-                        boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)',
-                        border: `2px solid ${anomaly.color}20`,
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <h3 className="font-bold text-lg mb-2" style={{ color: '#1e293b' }}>{anomaly.title}</h3>
-                        <div
-                          className="w-4 h-4 rounded-full mt-1 group-hover:scale-110 transition-transform"
-                          style={{
-                            background: anomaly.color,
-                            boxShadow: `0 0 12px ${anomaly.color}40`
-                          }}
-                        ></div>
-                      </div>
-                      <p className="text-sm mb-3 font-medium" style={{ color: '#64748b' }}>{anomaly.status}</p>
-                      <span
-                        className="text-xs px-3 py-2 rounded-full font-bold"
-                        style={{
-                          background: `linear-gradient(135deg, ${anomaly.color}, ${anomaly.color}dd)`,
-                          color: '#fff',
-                          boxShadow: `0 0 8px ${anomaly.color}30`
-                        }}
-                      >
-                        {anomaly.severity} Risk
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          }
 
 
 
 
-          {/* Quick Actions */}
-          {
-            analysisData && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  {
-                    title: 'Generate Report',
-                    icon: '📄',
-                    color: '#f2a09e',
-                    description: 'PDF & Excel reports'
-                  },
-                  {
-                    title: 'Compare Companies',
-                    icon: '📊',
-                    color: '#7B68EE',
-                    description: 'Benchmark analysis'
-                  },
-                  {
-                    title: 'Export Data',
-                    icon: '💾',
-                    color: '#FF6B9D',
-                    description: 'Raw data export'
-                  },
-                ].map((action, index) => (
-                  <button
-                    key={index}
-                    className="neumorphic-card rounded-3xl p-8 text-left transition-all cursor-pointer group relative overflow-hidden"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.9)',
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)',
-                      border: `2px solid ${action.color}20`
-                    }}
-                  >
-                    <div className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 group-hover:opacity-20 transition-opacity"
-                      style={{ background: `radial-gradient(circle, ${action.color}, transparent)` }}></div>
 
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div
-                          className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
-                          style={{
-                            background: `linear-gradient(135deg, ${action.color}, ${action.color}dd)`,
-                            boxShadow: `0 0 20px ${action.color}40`
-                          }}
-                        >
-                          {action.icon}
-                        </div>
-                        <div>
-                          <span className="font-bold text-xl block mb-1" style={{ color: '#1e293b' }}>{action.title}</span>
-                          <span className="text-sm font-medium" style={{ color: '#64748b' }}>{action.description}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )
-          }
-        </div>
-      </div>
+
+        </div >
+      </div >
 
 
 
@@ -2005,26 +1838,33 @@ export default function IRISAnalyticsDashboard() {
       {/* Chatbot FAB */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className={`fixed bottom-8 right-8 w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 z-50 ${isChatOpen
+        className={`fixed bottom-8 right-8 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 z-50 ${isChatOpen
           ? 'bg-red-500 shadow-inner rotate-45'
-          : 'bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg hover:scale-110 hover:shadow-blue-500/50'
+          : 'bg-transparent hover:scale-110'
           }`}
         style={{
           boxShadow: isChatOpen
             ? 'inset 4px 4px 8px rgba(0,0,0,0.2), inset -4px -4px 8px rgba(255,255,255,0.1)'
-            : '8px 8px 16px rgba(59, 130, 246, 0.3), -8px -8px 16px rgba(255, 255, 255, 0.1)'
+            : 'none'
         }}
         aria-label={isChatOpen ? "Close Chat" : "Open Chat"}
       >
         {isChatOpen ? (
           <span className="text-3xl text-white font-bold">+</span>
         ) : (
-          <FiMessageSquare className="w-8 h-8 text-white filter drop-shadow-md" />
+          <video
+            src="/chatbot.mp4"
+            className="w-full h-full rounded-full object-cover"
+            autoPlay
+            loop
+            muted
+            playsInline
+          />
         )}
         {!isChatOpen && (
           <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white"></span>
         )}
       </button>
-    </div>
+    </div >
   );
 }

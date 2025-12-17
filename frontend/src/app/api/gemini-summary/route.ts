@@ -6,8 +6,8 @@ export async function POST(request: Request) {
     const { analysisData, summaryType, companySymbol } = await request.json();
 
     // Initialize Gemini API
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    // const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     let prompt = '';
 
@@ -49,10 +49,42 @@ Write in professional, analytical tone. Use HTML tags for emphasis: <strong> for
 Write in professional, advisory tone. Use HTML tags: <strong> for key metrics, <span style="color: #22c55e; font-weight: 600;"> for low risk, <span style="color: #f59e0b; font-weight: 600;"> for moderate risk, <span style="color: #ef4444; font-weight: 600;"> for high risk.`;
     }
 
-    // Generate content with Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const summary = response.text();
+    // Initialize Gemini API with key rotation
+    const keys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+      process.env.GEMINI_API_KEY_5
+    ].filter(k => k);
+
+    let summary = '';
+    let success = false;
+    let lastError = null;
+
+    for (const key of keys) {
+      try {
+        const genAI = new GoogleGenerativeAI(key || '');
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        summary = response.text();
+        success = true;
+        break;
+      } catch (error: any) {
+        console.warn(`Gemini API attempt failed with key ending in ...${key?.slice(-4)}: ${error.message}`);
+        lastError = error;
+        if (error.message?.includes('429') || error.status === 429) {
+          continue; // Try next key
+        }
+        // For other errors, we might also want to try next key just in case
+      }
+    }
+
+    if (!success) {
+      throw lastError || new Error('All API keys failed');
+    }
 
     return NextResponse.json({
       success: true,

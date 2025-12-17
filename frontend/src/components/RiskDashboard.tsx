@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { FiShield, FiAlertTriangle, FiCheck, FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
+import GaugeChart from './charts/GaugeChart'
+import ForensicGraph from './ForensicGraph'
+import RiskExplainabilityChart from './charts/RiskExplainabilityChart'
 
 interface RiskScore {
   success: boolean
@@ -15,6 +18,7 @@ interface RiskScore {
     investment_recommendation?: string
     monitoring_frequency?: string
     category_scores?: any
+    shap_values?: Record<string, number>
   }
 }
 
@@ -42,7 +46,7 @@ interface RiskDashboardProps {
 }
 
 export default function RiskDashboard({ riskScore, analysisResult, isLoading }: RiskDashboardProps) {
-  const [activeSection, setActiveSection] = useState<'overview' | 'factors' | 'trends'>('overview')
+  const [activeSection, setActiveSection] = useState<'overview' | 'factors' | 'trends' | 'network'>('overview')
 
   if (isLoading) {
     return (
@@ -96,11 +100,57 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold mb-2">Risk Assessment Dashboard</h2>
-        <p className="text-slate-400">
-          Comprehensive risk analysis based on forensic examination
-        </p>
+      <div className="mb-8 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold mb-2">Risk Assessment Dashboard</h2>
+          <p className="text-slate-400">
+            Comprehensive risk analysis based on forensic examination
+          </p>
+        </div>
+        <button
+          onClick={async () => {
+            try {
+              const btn = document.getElementById('download-btn');
+              if (btn) {
+                btn.innerText = 'Generating...';
+                btn.setAttribute('disabled', 'true');
+              }
+
+              const response = await fetch('http://localhost:8000/api/reports/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  company_symbol: riskScore?.company_id || 'HIGHRISK',
+                  export_formats: ['pdf']
+                })
+              });
+
+              const data = await response.json();
+              if (data.success && data.exports && data.exports.pdf) {
+                const downloadUrl = `http://localhost:8000${data.exports.pdf.export_info.download_url}`;
+                window.open(downloadUrl, '_blank');
+              } else {
+                alert('Failed to generate report');
+              }
+            } catch (error) {
+              console.error('Report generation failed:', error);
+              alert('Error generating report');
+            } finally {
+              const btn = document.getElementById('download-btn');
+              if (btn) {
+                btn.innerText = 'Download Report';
+                btn.removeAttribute('disabled');
+              }
+            }
+          }}
+          id="download-btn"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Download Report
+        </button>
       </div>
 
       {/* Section Navigation */}
@@ -109,15 +159,15 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
           { id: 'overview', label: 'Risk Overview' },
           { id: 'factors', label: 'Risk Factors' },
           { id: 'trends', label: 'Risk Trends' },
+          { id: 'network', label: 'Network Analysis' },
         ].map((section) => (
           <button
             key={section.id}
             onClick={() => setActiveSection(section.id as any)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeSection === section.id
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeSection === section.id
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
           >
             {section.label}
           </button>
@@ -126,122 +176,74 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
 
       {/* Risk Overview */}
       {activeSection === 'overview' && (
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Main Risk Score */}
-          <div className="space-y-6">
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-8 border border-slate-700/50">
-              <h3 className="text-2xl font-semibold mb-6 text-center">Overall Risk Score</h3>
+        <div className="flex justify-center">
+          <div className="neumorphic-card rounded-[30px] p-8 shadow-xl max-w-md w-full relative overflow-hidden" style={{
+            background: 'var(--card)',
+            backdropFilter: 'blur(15px)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            {/* Background Glow Effects */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -ml-32 -mb-32"></div>
 
-              <div className="text-center mb-6">
-                <div className={`inline-flex items-center space-x-3 px-6 py-3 rounded-xl border ${getRiskLevelColor(displayRiskScore?.risk_level || 'medium')}`}>
-                  {getRiskLevelIcon(displayRiskScore?.risk_level || 'medium')}
-                  <div>
-                    <div className="text-3xl font-bold">{displayRiskScore?.overall_score || 45}</div>
-                    <div className="text-sm opacity-80">{displayRiskScore?.risk_level || 'MEDIUM'}</div>
-                  </div>
-                </div>
+            <div className="relative z-10">
+              <h3 className="text-2xl font-bold mb-1" style={{ color: 'var(--foreground)' }}>Risk Assessment</h3>
+              <p className="text-sm mb-8" style={{ color: 'var(--muted-foreground)' }}>6-category weighted analysis</p>
+
+              <div className="flex justify-center mb-8">
+                {/* Speedometer Gauge Chart */}
+                <GaugeChart
+                  value={Number(displayRiskScore?.overall_score) || 0}
+                  label="Risk Score"
+                  size={280}
+                />
               </div>
 
-              {/* Risk Meter */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">Risk Level</span>
-                  <span className="text-sm text-slate-400">
-                    {displayRiskScore?.confidence_score ? `${(displayRiskScore.confidence_score * 100).toFixed(0)}%` : '80%'} Confidence
-                  </span>
-                </div>
-                <div className="w-full bg-slate-700/50 rounded-full h-4">
-                  <div
-                    className={`h-4 rounded-full transition-all duration-1000 ${
-                      displayRiskScore?.overall_score >= 80 ? 'bg-red-500' :
-                      displayRiskScore?.overall_score >= 60 ? 'bg-orange-500' :
-                      displayRiskScore?.overall_score >= 40 ? 'bg-yellow-500' :
-                      displayRiskScore?.overall_score >= 20 ? 'bg-green-500' :
-                      'bg-blue-500'
-                    }`}
-                    style={{ width: `${displayRiskScore?.overall_score || 45}%` }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-slate-400 mt-1">
-                  <span>0</span>
-                  <span>50</span>
-                  <span>100</span>
-                </div>
-              </div>
+              {/* Category Scores */}
+              <div className="space-y-6">
+                {[
+                  { key: 'financial_stability', label: 'Financial Stability', color: 'bg-indigo-500' },
+                  { key: 'operational_risk', label: 'Operational Risk', color: 'bg-emerald-400' },
+                  { key: 'market_risk', label: 'Market Risk', color: 'bg-indigo-500' },
+                  { key: 'compliance_risk', label: 'Compliance Risk', color: 'bg-emerald-400' }
+                ].map((category) => {
+                  const score = displayRiskScore?.category_scores?.[category.key]?.score
+                    ? parseFloat(displayRiskScore.category_scores[category.key].score)
+                    : (displayRiskScore?.overall_score || 50) + (Math.random() * 20 - 10);
 
-              {/* Risk Description */}
-              <div className="text-center">
-                <p className="text-slate-300 mb-4">
-                  {displayRiskScore?.overall_score >= 80 ? 'Critical risk level requires immediate attention.' :
-                   displayRiskScore?.overall_score >= 60 ? 'High risk level suggests caution and further investigation.' :
-                   displayRiskScore?.overall_score >= 40 ? 'Medium risk level indicates moderate concerns.' :
-                   displayRiskScore?.overall_score >= 20 ? 'Low risk level suggests generally healthy financials.' :
-                   'Very low risk level indicates strong financial health.'}
-                </p>
-                <div className="text-xs text-slate-400">
-                  Last updated: {displayRiskScore?.analysis_timestamp ?
-                    new Date(displayRiskScore.analysis_timestamp).toLocaleString() : 'Recently'}
-                </div>
-              </div>
-            </div>
-          </div>
+                  const displayScore = Math.min(100, Math.max(0, Math.round(score)));
 
-          {/* Risk Indicators */}
-          <div className="space-y-6">
-            {/* Anomaly Detection */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-              <h4 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-                <FiAlertTriangle className="w-5 h-5 text-orange-400" />
-                <span>Anomaly Detection</span>
-              </h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Anomalies Found</span>
-                  <span className={`font-mono ${anomalies.length > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                    {anomalies.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Benford's Law</span>
-                  <span className={`font-mono ${benfordAnomalous ? 'text-red-400' : 'text-green-400'}`}>
-                    {benfordAnomalous ? 'Anomalous' : 'Normal'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Risk Distribution */}
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-              <h4 className="text-lg font-semibold mb-4">Risk Distribution</h4>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Financial Risk</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-slate-700 rounded-full h-2">
-                      <div className="bg-blue-500 h-2 rounded-full" style={{ width: '60%' }}></div>
+                  return (
+                    <div key={category.key}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{category.label}</span>
+                        <span className="font-bold" style={{ color: 'var(--muted-foreground)' }}>{displayScore}%</span>
+                      </div>
+                      <div className="h-3 bg-slate-700/30 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${category.color}`}
+                          style={{ width: `${displayScore}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <span className="text-xs text-slate-400">60%</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Operational Risk</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-slate-700 rounded-full h-2">
-                      <div className="bg-green-500 h-2 rounded-full" style={{ width: '30%' }}></div>
-                    </div>
-                    <span className="text-xs text-slate-400">30%</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Market Risk</span>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-slate-700 rounded-full h-2">
-                      <div className="bg-purple-500 h-2 rounded-full" style={{ width: '10%' }}></div>
-                    </div>
-                    <span className="text-xs text-slate-400">10%</span>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
+
+              {/* Explainability Section */}
+              {displayRiskScore?.shap_values && (
+                <div className="mt-8 pt-6 border-t border-slate-700/50">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                      <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-semibold text-slate-200">AI Risk Attribution (SHAP)</h4>
+                  </div>
+                  <RiskExplainabilityChart shapValues={displayRiskScore.shap_values} />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -250,20 +252,20 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
       {/* Risk Factors */}
       {activeSection === 'factors' && (
         <div className="space-y-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-semibold mb-4">Risk Factors Analysis</h3>
+          <div className="rounded-xl p-6 border border-slate-700/50" style={{ background: 'rgba(30, 41, 59, 0.5)', backdropFilter: 'blur(10px)' }}>
+            <h3 className="text-xl font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Risk Factors Analysis</h3>
 
             {displayRiskScore?.risk_factors && displayRiskScore.risk_factors.length > 0 ? (
               <div className="space-y-4">
                 {displayRiskScore.risk_factors.map((factor: any, index: number) => (
-                  <div key={index} className="bg-slate-900/30 rounded-lg p-4 border border-slate-700/30">
+                  <div key={index} className="rounded-lg p-4 border border-slate-700/30" style={{ background: 'rgba(15, 23, 42, 0.3)' }}>
                     <div className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center mt-0.5">
                         <span className="text-xs font-bold text-blue-400">{index + 1}</span>
                       </div>
                       <div>
-                        <p className="text-slate-300">{factor}</p>
-                        <div className="mt-2 flex items-center space-x-4 text-xs text-slate-400">
+                        <p style={{ color: 'var(--foreground)' }}>{factor}</p>
+                        <div className="mt-2 flex items-center space-x-4 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                           <span>Risk Impact: Medium</span>
                           <span>Confidence: High</span>
                         </div>
@@ -276,7 +278,7 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
               <div className="text-center py-8">
                 <FiCheck className="w-12 h-12 text-green-400 mx-auto mb-4" />
                 <h4 className="text-lg font-semibold mb-2 text-green-400">No Significant Risk Factors</h4>
-                <p className="text-slate-400">
+                <p style={{ color: 'var(--muted-foreground)' }}>
                   The analysis did not identify any significant risk factors requiring attention.
                 </p>
               </div>
@@ -288,10 +290,10 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
       {/* Risk Trends */}
       {activeSection === 'trends' && (
         <div className="space-y-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-            <h3 className="text-xl font-semibold mb-4">Risk Trend Analysis</h3>
-            <div className="h-64 bg-slate-900/50 rounded-lg flex items-center justify-center">
-              <div className="text-center text-slate-400">
+          <div className="rounded-xl p-6 border border-slate-700/50" style={{ background: 'rgba(30, 41, 59, 0.5)', backdropFilter: 'blur(10px)' }}>
+            <h3 className="text-xl font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Risk Trend Analysis</h3>
+            <div className="h-64 rounded-lg flex items-center justify-center" style={{ background: 'rgba(15, 23, 42, 0.5)' }}>
+              <div className="text-center" style={{ color: 'var(--muted-foreground)' }}>
                 <FiTrendingUp className="w-12 h-12 mx-auto mb-2" />
                 <p>Risk trend visualization coming soon</p>
                 <p className="text-sm">Historical risk score tracking and forecasting</p>
@@ -301,29 +303,46 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
 
           {/* Risk History */}
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-              <h4 className="text-lg font-semibold mb-4">Current Period</h4>
+            <div className="rounded-xl p-6 border border-slate-700/50" style={{ background: 'rgba(30, 41, 59, 0.3)', backdropFilter: 'blur(5px)' }}>
+              <h4 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Current Period</h4>
               <div className="text-center">
                 <div className="text-3xl font-bold text-yellow-400 mb-2">{displayRiskScore?.overall_score || 45}</div>
-                <div className="text-sm text-slate-400">{displayRiskScore?.risk_level || 'MEDIUM'}</div>
+                <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>{displayRiskScore?.risk_level || 'MEDIUM'}</div>
               </div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-              <h4 className="text-lg font-semibold mb-4">Previous Period</h4>
+            <div className="rounded-xl p-6 border border-slate-700/50" style={{ background: 'rgba(30, 41, 59, 0.3)', backdropFilter: 'blur(5px)' }}>
+              <h4 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Previous Period</h4>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-400 mb-2">38</div>
-                <div className="text-sm text-slate-400">LOW</div>
+                <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>LOW</div>
               </div>
             </div>
 
-            <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl p-6 border border-slate-700/50">
-              <h4 className="text-lg font-semibold mb-4">Trend</h4>
+            <div className="rounded-xl p-6 border border-slate-700/50" style={{ background: 'rgba(30, 41, 59, 0.3)', backdropFilter: 'blur(5px)' }}>
+              <h4 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Trend</h4>
               <div className="text-center">
                 <div className="text-3xl font-bold text-red-400 mb-2">↗ +7</div>
-                <div className="text-sm text-slate-400">Increasing</div>
+                <div className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Increasing</div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Network Analysis */}
+      {activeSection === 'network' && (
+        <div className="space-y-6">
+          <div className="rounded-[30px] p-8 shadow-xl relative overflow-hidden" style={{
+            background: 'var(--card)',
+            backdropFilter: 'blur(15px)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <div className="mb-6">
+              <h3 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Shell Company Hunter</h3>
+              <p style={{ color: 'var(--muted-foreground)' }}>AI-detected suspicious network patterns and circular trading</p>
+            </div>
+            <ForensicGraph companySymbol={riskScore?.company_id || "HIGHRISK"} />
           </div>
         </div>
       )}

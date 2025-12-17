@@ -37,7 +37,7 @@ class MarketSentimentAgent:
                 return
 
             genai.configure(api_key=settings.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+            self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
             logger.info("Gemini model initialized for sentiment analysis")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
@@ -142,47 +142,73 @@ class MarketSentimentAgent:
             return {"status": "error", "message": str(e)}
 
     def _analyze_headlines_with_gemini(self, headlines: List[Dict]) -> Dict[str, Any]:
-        """Use Gemini to analyze sentiment of headlines"""
-        if not self.gemini_model:
-            return {"score": 0, "label": "Unknown (Model unavailable)"}
+        """Use Gemini to analyze sentiment of headlines with key rotation"""
+        import time
+        import json
+        
+        keys = settings.gemini_keys
+        if not keys:
+            logger.warning("No Gemini API keys found in settings")
+            return {"score": 0, "label": "Unknown (Model unavailable)", "summary": "AI Summary Unavailable (No Keys)"}
 
-        try:
-            headlines_text = "\n".join([f"- {h['title']}" for h in headlines])
-            prompt = f"""
-            Analyze the market sentiment for the following financial news headlines.
-            Provide a sentiment score from -100 (Extremely Negative) to 100 (Extremely Positive).
-            Also provide a brief 1-sentence summary of the prevailing sentiment.
-            
-            Headlines:
-            {headlines_text}
-            
-            Output JSON format:
-            {{
-                "score": <int>,
-                "label": "<string>",
-                "summary": "<string>"
-            }}
-            """
-            
-            response = self.gemini_model.generate_content(prompt)
-            # Clean up response to ensure valid JSON
-            text = response.text.strip()
-            if text.startswith("```json"):
-                text = text[7:-3]
-            
-            import json
-            result = json.loads(text)
-            
-            # Handle case where LLM returns a list instead of a dict
-            if isinstance(result, list):
-                if result:
-                    return result[0]
-                return {"score": 0, "label": "Neutral", "summary": "No sentiment data"}
+        headlines_text = "\n".join([f"- {h['title']}" for h in headlines])
+        prompt = f"""
+        Analyze the market sentiment for the following financial news headlines.
+        Provide a sentiment score from -100 (Extremely Negative) to 100 (Extremely Positive).
+        Also provide a brief 1-sentence summary of the prevailing sentiment.
+        
+        Headlines:
+        {headlines_text}
+        
+        Output JSON format:
+        {{
+            "score": <int>,
+            "label": "<string>",
+            "summary": "<string>"
+        }}
+        """
+
+        last_error = None
+        
+        for key in keys:
+            try:
+                # Configure with current key
+                genai.configure(api_key=key)
+                model = genai.GenerativeModel('gemini-2.5-flash')
                 
-            return result
-        except Exception as e:
-            logger.error(f"Gemini sentiment analysis error: {str(e)}")
-            return {"score": 0, "label": "Error", "summary": "Could not analyze sentiment."}
+                response = model.generate_content(prompt)
+                
+                # Clean up response to ensure valid JSON
+                text = response.text.strip()
+                if text.startswith("```json"):
+                    text = text[7:-3]
+                elif text.startswith("```"):
+                    text = text[3:-3]
+                
+                result = json.loads(text)
+                
+                # Handle case where LLM returns a list instead of a dict
+                if isinstance(result, list):
+                    if result:
+                        return result[0]
+                    return {"score": 0, "label": "Neutral", "summary": "No sentiment data"}
+                    
+                return result
+                
+            except Exception as e:
+                last_error = e
+                error_msg = str(e)
+                if "429" in error_msg or "Resource has been exhausted" in error_msg:
+                    logger.warning(f"Rate limit hit for key ending in ...{key[-4:] if key else 'None'}, trying next key...")
+                    continue
+                else:
+                    logger.error(f"Gemini error with key ending in ...{key[-4:] if key else 'None'}: {error_msg}")
+                    # For non-rate-limit errors, we might still want to try other keys just in case
+                    continue
+
+        # If we get here, all keys failed
+        logger.error(f"All Gemini keys failed. Last error: {str(last_error)}")
+        return {"score": 0, "label": "Error", "summary": "AI Summary Unavailable (Rate Limit)"}
 
     def _analyze_headlines_with_finbert(self, headlines: List[Dict]) -> Dict[str, Any]:
         """Use FinBERT to analyze sentiment of headlines"""
@@ -256,7 +282,11 @@ class MarketSentimentAgent:
             finbert_score = 0
         
         # Weighted average: 60% FinBERT, 40% Gemini (since FinBERT is specialized)
-        combined_score = (finbert_score * 0.6) + (gemini_score * 0.4)
+        # If Gemini failed (score 0 and label Error/Neutral), rely 100% on FinBERT
+        if sentiment_analysis.get("label") in ["Error", "Neutral"] and gemini_score == 0 and finbert_score != 0:
+             combined_score = finbert_score
+        else:
+             combined_score = (finbert_score * 0.6) + (gemini_score * 0.4)
         
         if combined_score > 20:
             return "Bullish"

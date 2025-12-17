@@ -41,6 +41,13 @@ export default function SentimentSection({ sentimentData, isLoading = false }: S
     const sentimentLabel = news_sentiment?.sentiment_analysis?.label || "Neutral";
     const sentimentSummary = news_sentiment?.sentiment_analysis?.summary || "";
 
+    // FinBERT Data
+    const finbertData = news_sentiment?.finbert_analysis;
+    const finbertScore = finbertData?.score || 0;
+    const finbertLabel = finbertData?.label || "Neutral";
+    const finbertBreakdown = finbertData?.breakdown || { positive: 0, negative: 0, neutral: 0 };
+    const totalFinbert = (finbertBreakdown.positive + finbertBreakdown.negative + finbertBreakdown.neutral) || 1;
+
     const getSentimentColor = (score: number) => {
         if (score > 20) return '#4ade80'; // Green
         if (score < -20) return '#ef4444'; // Red
@@ -73,8 +80,8 @@ export default function SentimentSection({ sentimentData, isLoading = false }: S
                 </div>
             </div>
 
-            {/* Top Row: Trends Chart & Sentiment Score */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Top Row: Trends Chart & Sentiment Scores */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Google Trends Chart */}
                 <div className="lg:col-span-2 neumorphic-card rounded-3xl p-8" style={{
                     background: 'rgba(255, 255, 255, 0.95)',
@@ -173,6 +180,74 @@ export default function SentimentSection({ sentimentData, isLoading = false }: S
                     <p className="text-sm text-gray-500 leading-relaxed">
                         {sentimentSummary}
                     </p>
+                </div>
+
+                {/* FinBERT Sentiment Card */}
+                <div className="neumorphic-card rounded-3xl p-8 flex flex-col justify-center items-center text-center" style={{
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(15px)',
+                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)'
+                }}>
+                    <h3 className="text-xl font-bold mb-6" style={{ color: '#1e293b' }}>FinBERT Analysis</h3>
+
+                    <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle
+                                cx="64"
+                                cy="64"
+                                r="56"
+                                stroke="#e2e8f0"
+                                strokeWidth="8"
+                                fill="none"
+                            />
+                            <circle
+                                cx="64"
+                                cy="64"
+                                r="56"
+                                stroke={getSentimentColor(finbertScore)}
+                                strokeWidth="8"
+                                fill="none"
+                                strokeDasharray={2 * Math.PI * 56}
+                                strokeDashoffset={2 * Math.PI * 56 * (1 - (finbertScore + 100) / 200)}
+                                strokeLinecap="round"
+                                className="transition-all duration-1000 ease-out"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-bold" style={{ color: getSentimentColor(finbertScore) }}>
+                                {finbertScore}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="text-lg font-semibold mb-4" style={{ color: getSentimentColor(finbertScore) }}>
+                        {finbertLabel}
+                    </div>
+
+                    {/* Breakdown Bars */}
+                    <div className="w-full space-y-2">
+                        <div className="flex items-center text-xs">
+                            <span className="w-16 text-left font-medium text-green-600">Positive</span>
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                                <div className="h-full bg-green-400" style={{ width: `${(finbertBreakdown.positive / totalFinbert) * 100}%` }}></div>
+                            </div>
+                            <span className="w-6 text-right text-gray-500">{finbertBreakdown.positive}</span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                            <span className="w-16 text-left font-medium text-gray-500">Neutral</span>
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                                <div className="h-full bg-gray-400" style={{ width: `${(finbertBreakdown.neutral / totalFinbert) * 100}%` }}></div>
+                            </div>
+                            <span className="w-6 text-right text-gray-500">{finbertBreakdown.neutral}</span>
+                        </div>
+                        <div className="flex items-center text-xs">
+                            <span className="w-16 text-left font-medium text-red-600">Negative</span>
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden mx-2">
+                                <div className="h-full bg-red-400" style={{ width: `${(finbertBreakdown.negative / totalFinbert) * 100}%` }}></div>
+                            </div>
+                            <span className="w-6 text-right text-gray-500">{finbertBreakdown.negative}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

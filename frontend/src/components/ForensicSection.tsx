@@ -7,10 +7,14 @@ import SentimentSection from './SentimentSection';
 const FinancialRatiosChart = dynamic(() => import('@/components/charts/FinancialRatiosChart'), { ssr: false });
 const VerticalAnalysisChart = dynamic(() => import('@/components/charts/VerticalAnalysisChart'), { ssr: false });
 const HorizontalAnalysisChart = dynamic(() => import('@/components/charts/HorizontalAnalysisChart'), { ssr: false });
-const AnomalyDetectionChart = dynamic(() => import('@/components/charts/AnomalyDetectionChart'), { ssr: false });
+
 const BenfordChart = dynamic(() => import('@/components/charts/BenfordChart'), { ssr: false });
 const ZScoreChart = dynamic(() => import('@/components/charts/ZScoreChart'), { ssr: false });
 const MScoreChart = dynamic(() => import('@/components/charts/MScoreChart'), { ssr: false });
+
+
+import NetworkGraph from './NetworkGraph';
+import axios from 'axios';
 
 interface ForensicSectionProps {
   analysisData: any;
@@ -21,11 +25,105 @@ interface ForensicSectionProps {
 
 export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false }: ForensicSectionProps) {
   const [activeSubTab, setActiveSubTab] = useState('overview');
+  const [networkData, setNetworkData] = useState<any>(null);
+  const [isNetworkLoading, setIsNetworkLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Reset network data when company changes
+  useEffect(() => {
+    setNetworkData(null);
+  }, [analysisData?.company_id]);
+
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    if (!analysisData?.company_id) return;
+
+    setIsExporting(true);
+    try {
+      // 1. Generate Report
+      const response = await axios.post('/api/reports/generate', {
+        company_symbol: analysisData.company_id,
+        export_formats: [format],
+        include_summary: true
+      });
+
+      if (response.data.success && response.data.exports && response.data.exports[format]) {
+        const exportInfo = response.data.exports[format].export_info;
+        const downloadUrl = exportInfo.download_url;
+
+        // 2. Trigger Download
+        // Use the backend URL directly if it's a full URL, or append to base
+        // The backend returns /api/reports/download/{filename}
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', exportInfo.filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } else {
+        console.error('Export failed:', response.data);
+        alert('Failed to generate report. Please try again.');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('An error occurred while exporting the report.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!networkData && analysisData?.company_id) {
+      const fetchNetworkData = async () => {
+        setIsNetworkLoading(true);
+        try {
+          // Create a timeout promise
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Request timed out')), 60000)
+          );
+
+          // Race the API call against the timeout
+          const response = await Promise.race([
+            axios.get(`/api/forensic/network/${analysisData.company_id}`),
+            timeoutPromise
+          ]) as any;
+
+          console.log('Network Data Response:', response.data);
+          if (response.data.success) {
+            setNetworkData(response.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch network data:', error);
+          // Set empty state on error instead of misleading fallback
+          setNetworkData({
+            gemini_data: {
+              subsidiaries: [],
+              transactions: []
+            },
+            predictive_forensics: {
+              historical_revenue: [],
+              revenue_forecast: [],
+              trend: 'Unknown',
+              future_risk_score: 0
+            },
+            graph_data: {
+              nodes: [
+                { id: analysisData.company_id, type: 'custom', data: { label: analysisData.company_id, type: 'company', risk_score: 0 }, position: { x: 500, y: 400 } }
+              ],
+              edges: []
+            }
+          });
+        } finally {
+          setIsNetworkLoading(false);
+        }
+      };
+      fetchNetworkData();
+    }
+  }, [networkData, analysisData?.company_id]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2" style={{ borderColor: '#7B68EE' }}></div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         <span className="ml-4 text-lg font-medium" style={{ color: '#64748b' }}>Loading forensic analysis...</span>
       </div>
     );
@@ -48,11 +146,12 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
 
   const subTabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'network', label: 'RPT Network', icon: '🕸️' },
     { id: 'sentiment', label: 'Market Sentiment', icon: '📈' },
     { id: 'ratios', label: 'Financial Ratios', icon: '📈' },
     { id: 'vertical', label: 'Vertical Analysis', icon: '📊' },
     { id: 'horizontal', label: 'Horizontal Analysis', icon: '📈' },
-    { id: 'anomalies', label: 'Anomaly Detection', icon: '🚨' },
+
     { id: 'benford', label: 'Benford\'s Law', icon: '📊' },
     { id: 'zscore', label: 'Altman Z-Score', icon: '⚖️' },
     { id: 'mscore', label: 'Beneish M-Score', icon: '🔍' }
@@ -61,7 +160,9 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
   const renderContent = () => {
     switch (activeSubTab) {
       case 'overview':
-        return <ForensicOverview analysisData={analysisData} />;
+        return <ForensicOverview analysisData={analysisData} networkData={networkData} />;
+      case 'network':
+        return <NetworkGraph data={networkData?.graph_data} isLoading={isNetworkLoading} />;
       case 'sentiment':
         return <SentimentSection sentimentData={sentimentData} isLoading={isSentimentLoading} />;
       case 'ratios':
@@ -70,8 +171,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
         return <VerticalAnalysisChart data={analysisData.vertical_analysis} />;
       case 'horizontal':
         return <HorizontalAnalysisChart data={analysisData.horizontal_analysis} />;
-      case 'anomalies':
-        return <AnomalyDetectionChart data={analysisData.anomaly_detection} />;
+
       case 'benford':
         return <BenfordChart data={analysisData.benford_analysis} />;
       case 'zscore':
@@ -79,7 +179,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
       case 'mscore':
         return <MScoreChart data={analysisData.beneish_m_score} />;
       default:
-        return <ForensicOverview analysisData={analysisData} />;
+        return <ForensicOverview analysisData={analysisData} networkData={networkData} />;
     }
   };
 
@@ -160,7 +260,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
 }
 
 // Forensic Overview Component
-function ForensicOverview({ analysisData }: { analysisData: any }) {
+function ForensicOverview({ analysisData, networkData }: { analysisData: any, networkData: any }) {
   const metrics = [
     {
       name: 'Altman Z-Score',
@@ -176,13 +276,7 @@ function ForensicOverview({ analysisData }: { analysisData: any }) {
       color: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? '#FF6B9D' : '#4ade80',
       icon: '🔍'
     },
-    {
-      name: 'Anomalies Detected',
-      value: analysisData.anomaly_detection?.anomalies_detected || '0',
-      status: 'Detected',
-      color: '#7B68EE',
-      icon: '🚨'
-    },
+
     {
       name: 'Benford Score',
       value: `${analysisData.benford_analysis?.overall_score || 'N/A'}%`,
@@ -249,6 +343,9 @@ function ForensicOverview({ analysisData }: { analysisData: any }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column - Analysis Summary */}
         <div className="space-y-6">
+
+
+
           <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Analysis Summary</h3>
 
           <div className="space-y-4">
@@ -323,8 +420,11 @@ function ForensicOverview({ analysisData }: { analysisData: any }) {
           </div>
         </div>
 
-        {/* Right Column - Quick Insights */}
+        {/* Right Column - Quick Insights & Globe */}
         <div className="space-y-6">
+
+
+
           <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Quick Insights</h3>
 
           <div className="space-y-4">

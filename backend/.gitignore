@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+iris_venv/
+
+# Environment Variables
+.env
+.env.*
+
+# IDEs
+.idea/
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+celerybeat-schedule
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
