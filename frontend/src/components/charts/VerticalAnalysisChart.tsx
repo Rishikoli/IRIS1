@@ -49,7 +49,7 @@ export default function VerticalAnalysisChart({ data }: VerticalAnalysisChartPro
     const balanceItems = [
       { name: 'Total Assets', value: balanceData.total_assets_pct || 0, category: 'Balance Sheet' },
       { name: 'Current Assets', value: balanceData.current_assets_pct || 0, category: 'Balance Sheet' },
-      { name: 'Fixed Assets', value: balanceData.fixed_assets_pct || 0, category: 'Balance Sheet' },
+      { name: 'Fixed Assets', value: balanceData.fixed_assets_pct || balanceData.non_current_assets_pct || 0, category: 'Balance Sheet' },
       { name: 'Total Liabilities', value: balanceData.total_liabilities_pct || 0, category: 'Balance Sheet' },
       { name: 'Current Liabilities', value: balanceData.current_liabilities_pct || 0, category: 'Balance Sheet' },
       { name: 'Shareholders Equity', value: balanceData.shareholders_equity_pct || 0, category: 'Balance Sheet' }

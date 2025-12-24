@@ -35,7 +35,7 @@ class NetworkAnalysisAgent:
                 return
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
             logger.info("Gemini model initialized for RPT analysis")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
@@ -100,10 +100,21 @@ class NetworkAnalysisAgent:
             task_gemini = asyncio.create_task(run_gemini())
             
             # Wait for all remaining tasks
-            auditor_data, exchange_data, gemini_data = await asyncio.gather(
-                task_auditor, task_exchange, task_gemini
+            # Wait for all remaining tasks
+            results = await asyncio.gather(
+                task_auditor, task_exchange, task_gemini,
+                return_exceptions=True
             )
             
+            auditor_data = results[0] if not isinstance(results[0], Exception) else {"status": "error", "error": str(results[0])}
+            exchange_data = results[1] if not isinstance(results[1], Exception) else {"status": "error", "error": str(results[1])}
+            gemini_data = results[2] if not isinstance(results[2], Exception) else {"subsidiaries": [], "associates": [], "transactions": []}
+            
+            # Log specific crash exceptions if any
+            if isinstance(results[0], Exception): logger.error(f"Auditor task crashed: {results[0]}")
+            if isinstance(results[1], Exception): logger.error(f"Exchange task crashed: {results[1]}")
+            if isinstance(results[2], Exception): logger.error(f"Gemini task crashed: {results[2]}")
+
             logger.info("Parallel data gathering completed")
             
             # 3. Process Results
@@ -144,6 +155,7 @@ class NetworkAnalysisAgent:
                 "company": company_symbol,
                 "graph_data": graph_data,
                 "analysis": analysis_results,
+                "cycles": analysis_results.get("suspicious_loops", []), # Direct access for Shell Hunter 3D
                 "gemini_data": gemini_data
             }
 
@@ -248,7 +260,7 @@ class NetworkAnalysisAgent:
                     # Configure with current key
                     current_key = keys[current_key_index]
                     genai.configure(api_key=current_key)
-                    model = genai.GenerativeModel('gemini-2.0-flash')
+                    model = genai.GenerativeModel('gemini-2.5-flash')
 
                     response = model.generate_content(prompt)
                     text = response.text.strip()
@@ -317,7 +329,13 @@ class NetworkAnalysisAgent:
             if not name: continue
             
             rel_type = entity.get("relationship", "Subsidiary")
-            risk = entity.get("risk_score", 50)
+            
+            # Robustly handle risk_score (handle strings, None, etc.)
+            raw_risk = entity.get("risk_score", 50)
+            try:
+                risk = float(raw_risk)
+            except (ValueError, TypeError):
+                risk = 50.0
             
             # Location Data (Agent 12)
             location = entity.get("location", {})
@@ -343,7 +361,7 @@ class NetworkAnalysisAgent:
             G.add_node(name, **node_attrs)
             
             # Add Edge
-            G.add_edge(company_node, name, relationship=rel_type, weight=risk/100)
+            G.add_edge(company_node, name, relationship=rel_type, weight=risk/100.0)
 
         # 3. Add Transactions (Edges)
         for tx in data.get("transactions", []):

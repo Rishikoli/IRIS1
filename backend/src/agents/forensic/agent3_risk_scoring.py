@@ -13,6 +13,8 @@ import json
 
 from src.config import settings
 from src.database.connection import get_db_client
+from src.agents.forensic.agent4_compliance import ComplianceValidationAgent
+from duckduckgo_search import DDGS
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,9 @@ class RiskScoringAgent:
         except Exception:
             # For standalone analysis without database
             self.db_client = None
+        
+        # Initialize Compliance Agent
+        self.compliance_agent = ComplianceValidationAgent()
         logger.info("Risk Scoring Agent initialized")
 
     def calculate_risk_score(self, company_symbol: str, forensic_data: Dict[str, Any]) -> CompositeRiskAssessment:
@@ -64,9 +69,7 @@ class RiskScoringAgent:
         try:
             logger.info(f"Calculating risk score for {company_symbol}")
 
-            # Mock high risk for testing
-            if company_symbol == "HIGHRISK":
-                return self._create_high_risk_mock_assessment(company_symbol)
+            logger.info(f"Calculating risk score for {company_symbol}")
 
             # Extract analysis results
             vertical_analysis = forensic_data.get("vertical_analysis", {})
@@ -86,13 +89,15 @@ class RiskScoringAgent:
                 vertical_analysis, financial_ratios
             )
 
-            # 3. Market Risk
+            # 3. Market Risk (Enhanced with Sentiment Analysis)
             risk_scores[RiskCategory.MARKET_RISK] = self._calculate_market_risk(
-                horizontal_analysis, financial_ratios
+                company_symbol, horizontal_analysis, financial_ratios
             )
 
-            # 4. Compliance Risk (placeholder - would integrate with Agent 4)
-            risk_scores[RiskCategory.COMPLIANCE_RISK] = self._calculate_compliance_risk()
+            # 4. Compliance Risk (Integrated with Agent 4)
+            risk_scores[RiskCategory.COMPLIANCE_RISK] = self._calculate_compliance_risk(
+                company_symbol, forensic_data
+            )
 
             # 5. Liquidity Risk
             risk_scores[RiskCategory.LIQUIDITY_RISK] = self._calculate_liquidity_risk(
@@ -396,8 +401,8 @@ class RiskScoringAgent:
             recommendations=self._generate_operational_risk_recommendations(score, factors)
         )
 
-    def _calculate_market_risk(self, horizontal_analysis: Dict, financial_ratios: Dict) -> RiskScore:
-        """Calculate market risk score with enhanced sensitivity"""
+    def _calculate_market_risk(self, company_symbol: str, horizontal_analysis: Dict, financial_ratios: Dict) -> RiskScore:
+        """Calculate market risk score with enhanced sensitivity and sentiment analysis"""
         factors = []
         score = 0.0
         confidence = 0.6
@@ -503,7 +508,17 @@ class RiskScoringAgent:
 
             if net_margin > 30 and gross_margin < 20:
                 score += 20
+            if net_margin > 30 and gross_margin < 20:
+                score += 20
                 factors.append("Unusually high net margin relative to gross margin warrants investigation")
+
+        # Market Sentiment Analysis (New)
+        # Search for negative news that might trigger market risk
+        sentiment_risk, sentiment_factors = self._analyze_market_sentiment(company_symbol)
+        if sentiment_risk > 0:
+            score += sentiment_risk
+            factors.extend(sentiment_factors)
+            confidence += 0.1  # Increased confidence with external data
 
         score = max(0, min(100, score))
 
@@ -516,18 +531,54 @@ class RiskScoringAgent:
             recommendations=self._generate_market_risk_recommendations(score, factors)
         )
 
-    def _calculate_compliance_risk(self) -> RiskScore:
-        """Calculate compliance risk score (placeholder)"""
-        # This would be enhanced with actual compliance data from Agent 4
+    def _calculate_compliance_risk(self, company_symbol: str, forensic_data: Dict[str, Any]) -> RiskScore:
+        """Calculate compliance risk score using Agent 4"""
+        try:
+            # Call Compliance Validation Agent
+            compliance_assessment = self.compliance_agent.validate_compliance(company_symbol, forensic_data)
+            
+            # Context regarding scoring inversion:
+            # Compliance Score: 100 is Perfect (Low Risk)
+            # Risk Score: 100 is Critical (High Risk)
+            # Formula: Risk Score = 100 - Compliance Score
+            
+            compliance_score = compliance_assessment.overall_compliance_score
+            risk_score_val = max(0.0, 100.0 - compliance_score)
+            
+            # Extract factors from violations
+            factors = []
+            for violation in compliance_assessment.violations:
+                factors.append(f"{violation.violation_description} ({violation.severity.value.upper()})")
+                
+            if not factors and risk_score_val < 10:
+                factors.append("Strong regulatory compliance profile")
+                
+            # Extract recommendations
+            recommendations = compliance_assessment.recommendations
+            
+            # Determine confidence based on violations data availability
+            confidence = 0.9 if compliance_assessment.violations is not None else 0.5
 
-        return RiskScore(
-            category=RiskCategory.COMPLIANCE_RISK,
-            score=30.0,  # Placeholder - would be calculated based on actual compliance data
-            weight=0.15,  # 15% weight in composite
-            confidence=0.5,  # Lower confidence until Agent 4 is integrated
-            factors=["Compliance assessment requires integration with regulatory data sources"],
-            recommendations=["Integrate with SEBI compliance monitoring systems", "Implement automated compliance checking"]
-        )
+            return RiskScore(
+                category=RiskCategory.COMPLIANCE_RISK,
+                score=risk_score_val,
+                weight=0.15,  # 15% weight in composite
+                confidence=confidence,
+                factors=factors,
+                recommendations=recommendations
+            )
+            
+        except Exception as e:
+            logger.error(f"Error calculating compliance risk: {e}")
+            # Fallback in case of integration failure
+            return RiskScore(
+                category=RiskCategory.COMPLIANCE_RISK,
+                score=30.0,
+                weight=0.15,
+                confidence=0.3,
+                factors=[f"Compliance integration failed: {str(e)}"],
+                recommendations=["Investigate compliance data source connectivity"]
+            )
 
     def _calculate_liquidity_risk(self, vertical_analysis: Dict, financial_ratios: Dict) -> RiskScore:
         """Calculate liquidity risk score"""
@@ -757,6 +808,7 @@ class RiskScoringAgent:
             assessment_date=datetime.now().isoformat(),
             overall_risk_score=0.0,
             risk_category_scores={},
+            shap_values={},
             risk_level="ERROR",
             risk_factors=[f"Risk calculation failed: {error_message}"],
             investment_recommendation="ERROR - Unable to assess risk",
@@ -779,6 +831,7 @@ class RiskScoringAgent:
             assessment_date=datetime.now().isoformat(),
             overall_risk_score=78.5,
             risk_category_scores=risk_scores,
+            shap_values={"financial_stability": 25.0, "operational_risk": 20.0, "market_risk": 15.0},
             risk_level="CRITICAL",
             risk_factors=["Extremely high leverage", "Severe liquidity crisis", "Operational failure", "Major compliance violations"],
             investment_recommendation="NOT RECOMMENDED - Critical risk factors identified",
@@ -798,6 +851,7 @@ class RiskScoringAgent:
             "category_breakdown": {
                 category.value: {
                     "score": risk_score.score,
+                    "level": self._determine_risk_level(risk_score.score),
                     "weight": risk_score.weight,
                     "confidence": risk_score.confidence,
                     "factors": risk_score.factors,
@@ -847,4 +901,60 @@ class RiskScoringAgent:
         shap_values["base_value"] = base_value
         
         return shap_values
+
+    def _analyze_market_sentiment(self, company_symbol: str) -> Tuple[float, List[str]]:
+        """
+        Analyze market sentiment by searching for negative news.
+        Returns: (risk_score_increase, list_of_factors)
+        """
+        try:
+            # Clean symbol
+            company_name = company_symbol.split(".")[0]
+            
+            # Keywords representing negative sentiment/risk
+            negative_keywords = [
+                "fraud", "scandal", "investigation", "lawsuit", "default", 
+                "bankruptcy", "resignation", "raid", "accounting irregularities",
+                "insider trading", "money laundering"
+            ]
+            
+            # Construct query
+            # Let's try searching for recent negative news specifically
+            query = f"{company_name} (fraud OR scandal OR investigation OR lawsuit OR default)"
+            
+            risk_increase = 0.0
+            factors = []
+            
+            logger.info(f"Searching market sentiment for {company_name}...")
+            
+            with DDGS() as ddgs:
+                # Get last 5 results
+                results = list(ddgs.text(query, max_results=5))
+                
+                if not results:
+                    return 0.0, []
+                
+                negative_hits = 0
+                for r in results:
+                    title = r.get('title', '').lower()
+                    body = r.get('body', '').lower()
+                    content = title + " " + body
+                    
+                    found_keywords = [kw for kw in negative_keywords if kw in content]
+                    if found_keywords:
+                        negative_hits += 1
+                        # Log unique keywords for context
+                        factors.append(f"Negative sentiment detected: '{found_keywords[0]}' in news")
+                        
+                # Scoring logic: +5 per negative hit, max 20
+                if negative_hits > 0:
+                    risk_increase = min(20.0, negative_hits * 5.0)
+                    factors = list(set(factors)) # Deduplicate
+                    factors.append(f"High negative news volume ({negative_hits} articles found)")
+                    
+            return risk_increase, factors
+
+        except Exception as e:
+            logger.warning(f"Market sentiment analysis failed: {e}")
+            return 0.0, []
 

@@ -10,271 +10,200 @@ interface BenfordChartProps {
 export default function BenfordChart({ data }: BenfordChartProps) {
   const chartRef = useRef<SVGSVGElement>(null);
 
-  useEffect(() => {
-    if (!data || !chartRef.current) return;
+  // Safely extract data
+  const benfordData = data?.benford_analysis || data || {};
 
+  // Backend returns: observed_frequencies (array), expected_frequencies (array)
+  const observedFn = benfordData.observed_frequencies || [];
+  const expectedFn = benfordData.expected_frequencies || [30.1, 17.6, 12.5, 9.7, 7.9, 6.7, 5.8, 5.1, 4.6];
+
+  // Prepare combined data for D3
+  const chartData = Array.from({ length: 9 }, (_, i) => {
+    const digit = i + 1;
+    const obs = Number(observedFn[i] || 0);
+    const exp = Number(expectedFn[i] || 0);
+    return {
+      digit: digit.toString(),
+      actual: obs,
+      expected: exp,
+      deviation: obs - exp
+    };
+  });
+
+  const chiSquare = benfordData.chi_square_statistic || 0;
+  const isAnomalous = benfordData.is_anomalous || false;
+
+  useEffect(() => {
+    if (!chartRef.current) return;
     drawChart();
   }, [data]);
 
   const drawChart = () => {
-    if (!data || !chartRef.current) return;
-
-    // Clear previous chart
+    if (!chartRef.current) return;
     d3.select(chartRef.current).selectAll("*").remove();
 
-    const margin = { top: 40, right: 40, bottom: 60, left: 60 };
-    const width = 500 - margin.left - margin.right;
-    const height = 350 - margin.top - margin.bottom;
+    const margin = { top: 40, right: 30, bottom: 50, left: 60 };
+    const width = 800 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
 
     const svg = d3.select(chartRef.current)
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // Benford's Law expected distribution
-    const benfordExpected = {
-      '1': 30.1, '2': 17.6, '3': 12.5, '4': 9.7, '5': 7.9,
-      '6': 6.7, '7': 5.8, '8': 5.1, '9': 4.6
-    };
-
-    // Extract actual data from API response
-    const digitAnalysis = data.digit_analysis || {};
-    const actualData = [];
-
-    for (let digit = 1; digit <= 9; digit++) {
-      const expected = (benfordExpected as any)[digit.toString()];
-      const actual = digitAnalysis[digit]?.actual || 0;
-      const deviation = digitAnalysis[digit]?.deviation || 0;
-
-      actualData.push({
-        digit: digit.toString(),
-        expected: expected,
-        actual: actual,
-        deviation: deviation
-      });
-    }
-
-    // Set up scales
-    const xScale = d3.scaleBand()
-      .domain(actualData.map(d => d.digit))
+    // Scales
+    const x = d3.scaleBand()
       .range([0, width])
-      .padding(0.1);
+      .domain(chartData.map(d => d.digit))
+      .padding(0.2);
 
-    const yScale = d3.scaleLinear()
-      .domain([0, d3.max(actualData, d => Math.max(d.expected, d.actual)) || 35])
+    const y = d3.scaleLinear()
+      .domain([0, Math.max(
+        40, // Minimum Y axis to 40%
+        d3.max(chartData, d => Math.max(d.actual, d.expected)) || 0
+      )])
       .range([height, 0]);
 
-    // Color scale for bars
-    const colorScale = d3.scaleOrdinal()
-      .domain(['expected', 'actual'])
-      .range(['#7B68EE', '#FF6B9D']);
+    // Grid lines
+    svg.append("g")
+      .attr("class", "grid")
+      .attr("opacity", 0.1)
+      .call(d3.axisLeft(y).tickSize(-width).tickFormat(() => ""));
 
-    // Draw bars for expected values
-    svg.selectAll(".expected-bar")
-      .data(actualData)
+    // Expected Line (Benford)
+    const line = d3.line<any>()
+      .x(d => (x(d.digit) || 0) + x.bandwidth() / 2)
+      .y(d => y(d.expected))
+      .curve(d3.curveMonotoneX);
+
+    svg.append("path")
+      .datum(chartData)
+      .attr("fill", "none")
+      .attr("stroke", "#7B68EE")
+      .attr("stroke-width", 3)
+      .attr("stroke-dasharray", "5,5")
+      .attr("d", line);
+
+    // Expected Points
+    svg.selectAll(".dot-exp")
+      .data(chartData)
+      .enter()
+      .append("circle")
+      .attr("cx", d => (x(d.digit) || 0) + x.bandwidth() / 2)
+      .attr("cy", d => y(d.expected))
+      .attr("r", 4)
+      .attr("fill", "#7B68EE");
+
+    // Actual Bars
+    svg.selectAll(".bar")
+      .data(chartData)
       .enter()
       .append("rect")
-      .attr("class", "expected-bar")
-      .attr("x", d => xScale(d.digit) || 0)
-      .attr("y", d => yScale(d.expected))
-      .attr("width", xScale.bandwidth() / 2)
-      .attr("height", d => height - yScale(d.expected))
-      .attr("fill", colorScale('expected') as string)
-      .attr("opacity", 0.7)
-      .attr("rx", 2);
+      .attr("class", "bar")
+      .attr("x", d => x(d.digit) || 0)
+      .attr("width", x.bandwidth())
+      .attr("y", d => y(d.actual))
+      .attr("height", d => height - y(d.actual))
+      .attr("fill", "#FF6B9D")
+      .attr("rx", 4)
+      .attr("opacity", 0.8);
 
-    // Draw bars for actual values
-    svg.selectAll(".actual-bar")
-      .data(actualData)
-      .enter()
-      .append("rect")
-      .attr("class", "actual-bar")
-      .attr("x", d => (xScale(d.digit) || 0) + xScale.bandwidth() / 2)
-      .attr("y", d => yScale(d.actual))
-      .attr("width", xScale.bandwidth() / 2)
-      .attr("height", d => height - yScale(d.actual))
-      .attr("fill", colorScale('actual') as string)
-      .attr("rx", 2);
-
-    // Add value labels
-    svg.selectAll(".expected-label")
-      .data(actualData)
-      .enter()
-      .append("text")
-      .attr("class", "expected-label")
-      .attr("x", d => (xScale(d.digit) || 0) + xScale.bandwidth() / 4)
-      .attr("y", d => yScale(d.expected) - 5)
-      .attr("text-anchor", "middle")
-      .style("font-size", "10px")
-      .style("font-weight", "bold")
-      .style("fill", "#fff")
-      .text(d => d.expected.toFixed(1));
-
-    svg.selectAll(".actual-label")
-      .data(actualData)
-      .enter()
-      .append("text")
-      .attr("class", "actual-label")
-      .attr("x", d => (xScale(d.digit) || 0) + (3 * xScale.bandwidth() / 4))
-      .attr("y", d => yScale(d.actual) - 5)
-      .attr("text-anchor", "middle")
-      .style("font-size", "10px")
-      .style("font-weight", "bold")
-      .style("fill", "#fff")
-      .text(d => d.actual.toFixed(1));
-
-    // Draw axes
+    // Labels
     svg.append("g")
       .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(xScale))
-      .selectAll("text")
-      .style("font-size", "12px");
-
-    svg.append("g")
-      .call(d3.axisLeft(yScale).ticks(5))
-      .selectAll("text")
-      .style("font-size", "12px");
-
-    // Add chart title
-    svg.append("text")
-      .attr("x", width / 2)
-      .attr("y", -20)
-      .attr("text-anchor", "middle")
-      .style("font-size", "16px")
-      .style("font-weight", "bold")
-      .style("fill", "#1e293b")
-      .text("Benford's Law Distribution Analysis");
-
-    // Add axis labels
-    svg.append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", -40)
-      .attr("x", -height / 2)
-      .attr("text-anchor", "middle")
-      .style("font-size", "14px")
-      .style("fill", "#64748b")
-      .text("Frequency (%)");
+      .call(d3.axisBottom(x))
+      .style("font-size", "14px");
 
     svg.append("text")
-      .attr("y", height + 40)
-      .attr("x", width / 2)
-      .attr("text-anchor", "middle")
-      .style("font-size", "14px")
-      .style("fill", "#64748b")
+      .attr("transform", `translate(${width / 2}, ${height + 40})`)
+      .style("text-anchor", "middle")
       .text("Leading Digit");
 
-    // Add legend
-    const legend = svg.selectAll(".legend")
-      .data(['Expected (Benford)', 'Actual (Company)'])
-      .enter()
-      .append("g")
-      .attr("class", "legend")
-      .attr("transform", (d, i) => `translate(${width - 120},${-30 + i * 20})`);
+    svg.append("g")
+      .call(d3.axisLeft(y).ticks(5).tickFormat(d => d + "%"))
+      .style("font-size", "12px");
 
-    legend.append("rect")
-      .attr("width", 12)
-      .attr("height", 12)
-      .style("fill", d => colorScale(d) as string);
+    // Legend
+    const legend = svg.append("g")
+      .attr("transform", `translate(${width - 200}, -20)`);
 
-    legend.append("text")
-      .attr("x", 15)
-      .attr("y", 10)
-      .text(d => d)
-      .style("font-size", "11px")
-      .style("fill", "#64748b");
+    // Legend content...
+    legend.append("rect").attr("width", 15).attr("height", 15).attr("fill", "#FF6B9D").attr("rx", 2);
+    legend.append("text").attr("x", 20).attr("y", 12).text("Actual Frequency").style("font-size", "12px").style("fill", "#64748b");
+
+    legend.append("line").attr("x1", 0).attr("x2", 15).attr("y1", 28).attr("y2", 28).attr("stroke", "#7B68EE").attr("stroke-width", 3).attr("stroke-dasharray", "3,3");
+    legend.append("text").attr("x", 20).attr("y", 32).text("Benford's Law (Expected)").style("font-size", "12px").style("fill", "#64748b");
+
   };
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h3 className="text-xl font-bold mb-2" style={{ color: '#1e293b' }}>Benford's Law Analysis</h3>
-        <p className="text-sm" style={{ color: '#64748b' }}>
-          Statistical analysis of leading digit distribution for fraud detection
-        </p>
+    <div className="w-full space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex-1">
+          <h3 className="text-2xl font-bold text-slate-800">Benford's Law Analysis</h3>
+          <p className="text-slate-500">
+            Forensic analysis of leading digit distribution to detect potential anomalies or manual manipulation.
+          </p>
+        </div>
+        <div className={`px-6 py-3 rounded-2xl border-2 flex flex-col items-center min-w-[180px]`}
+          style={{
+            borderColor: isAnomalous ? '#EF4444' : '#10B981',
+            backgroundColor: isAnomalous ? '#EF444410' : '#10B98110'
+          }}>
+          <span className="text-xl font-bold" style={{ color: isAnomalous ? '#EF4444' : '#10B981' }}>
+            {isAnomalous ? 'ANOMALOUS' : 'NORMAL'}
+          </span>
+          <span className="text-xs font-bold tracking-wider text-slate-500">DISTRIBUTION</span>
+        </div>
       </div>
 
-      <div className="neumorphic-card rounded-2xl p-6" style={{
-        background: 'rgba(255, 255, 255, 0.9)',
-        boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)'
-      }}>
+      <div className="neumorphic-card rounded-3xl p-6 bg-white/50">
         <svg ref={chartRef} className="w-full h-auto"></svg>
       </div>
 
-      {/* Analysis Summary */}
-      <div className="mt-6 neumorphic-card rounded-2xl p-6" style={{
-        background: 'rgba(255, 255, 255, 0.9)',
-        boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)'
-      }}>
-        <h4 className="text-lg font-semibold mb-4" style={{ color: '#1e293b' }}>Benford's Law Compliance</h4>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-4 rounded-xl" style={{
-            background: 'rgba(123, 104, 238, 0.1)',
-            border: '2px solid rgba(123, 104, 238, 0.3)'
-          }}>
-            <div className="text-2xl font-bold" style={{ color: '#7B68EE' }}>{data.overall_score || 'N/A'}%</div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>Compliance Score</div>
-          </div>
-
-          <div className="text-center p-4 rounded-xl" style={{
-            background: 'rgba(75, 222, 128, 0.1)',
-            border: '2px solid rgba(75, 222, 128, 0.3)'
-          }}>
-            <div className="text-2xl font-bold text-green-600">
-              {Object.values(data.digit_analysis || {}).filter((d: any) => Math.abs(d.deviation || 0) < 2).length}/9
-            </div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>Digits in Range</div>
-          </div>
-
-          <div className="text-center p-4 rounded-xl" style={{
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '2px solid rgba(239, 68, 68, 0.3)'
-          }}>
-            <div className="text-2xl font-bold text-red-600">
-              {Object.values(data.digit_analysis || {}).filter((d: any) => Math.abs(d.deviation || 0) > 3).length}
-            </div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>Significant Deviations</div>
-          </div>
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="neumorphic-card p-5 rounded-xl text-center">
+          <div className="text-3xl font-bold text-slate-700">{Number(chiSquare).toFixed(2)}</div>
+          <div className="text-sm text-slate-500 uppercase tracking-wide font-semibold mt-1">Chi-Square Score</div>
         </div>
+        <div className="neumorphic-card p-5 rounded-xl text-center">
+          <div className="text-3xl font-bold text-slate-700">{benfordData.total_numbers_analyzed || 0}</div>
+          <div className="text-sm text-slate-500 uppercase tracking-wide font-semibold mt-1">Data Points Analyzed</div>
+        </div>
+        <div className="neumorphic-card p-5 rounded-xl text-center">
+          <div className="text-3xl font-bold text-slate-700">{benfordData.confidence_level ? (benfordData.confidence_level * 100) + '%' : '95%'}</div>
+          <div className="text-sm text-slate-500 uppercase tracking-wide font-semibold mt-1">Confidence Level</div>
+        </div>
+      </div>
 
-        {/* Digit Analysis Table */}
-        <div className="space-y-3">
-          <h5 className="font-semibold" style={{ color: '#1e293b' }}>Digit-by-Digit Analysis</h5>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {Object.entries(data.digit_analysis || {}).map(([digit, analysis]: [string, any]) => (
-              <div key={digit} className="p-3 rounded-xl" style={{
-                background: 'rgba(255, 255, 255, 0.7)',
-                boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                border: `2px solid ${Math.abs(analysis.deviation || 0) > 3 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(75, 222, 128, 0.3)'}`
-              }}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-lg" style={{ color: '#1e293b' }}>Digit {digit}</span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    Math.abs(analysis.deviation || 0) > 3 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                  }`}>
-                    {Math.abs(analysis.deviation || 0) > 3 ? 'High Deviation' : 'Normal'}
-                  </span>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Expected:</span>
-                    <span className="font-semibold" style={{ color: '#1e293b' }}>{analysis.expected?.toFixed(1) || 'N/A'}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Actual:</span>
-                    <span className="font-semibold" style={{ color: '#1e293b' }}>{analysis.actual?.toFixed(1) || 'N/A'}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span style={{ color: '#64748b' }}>Deviation:</span>
-                    <span className={`font-semibold ${analysis.deviation >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {analysis.deviation >= 0 ? '+' : ''}{analysis.deviation?.toFixed(1) || 'N/A'}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Detailed Table */}
+      <div className="neumorphic-card rounded-2xl p-6">
+        <h4 className="text-lg font-bold text-slate-700 mb-4">Digit Analysis Breakdown</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 font-medium">
+              <tr>
+                <th className="p-3 rounded-l-lg">Digit</th>
+                <th className="p-3 text-right">Actual Freq.</th>
+                <th className="p-3 text-right">Expected Freq.</th>
+                <th className="p-3 text-right rounded-r-lg">Deviation</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {chartData.map((d) => (
+                <tr key={d.digit} className="hover:bg-slate-50/50">
+                  <td className="p-3 font-bold text-slate-700">{d.digit}</td>
+                  <td className="p-3 text-right font-mono">{d.actual.toFixed(1)}%</td>
+                  <td className="p-3 text-right font-mono text-slate-400">{d.expected.toFixed(1)}%</td>
+                  <td className={`p-3 text-right font-bold ${Math.abs(d.deviation) > 5 ? 'text-red-500' : 'text-slate-600'}`}>
+                    {d.deviation > 0 ? '+' : ''}{d.deviation.toFixed(1)}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

@@ -1,16 +1,13 @@
-"use client";
-
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactFlow, {
-    Node,
-    Edge,
-    Controls,
     Background,
+    Controls,
     useNodesState,
     useEdgesState,
-    MarkerType,
+    MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import CyberNode from './graph/CyberNode';
 
 interface ForensicGraphProps {
     companySymbol: string;
@@ -22,34 +19,28 @@ const ForensicGraph: React.FC<ForensicGraphProps> = ({ companySymbol }) => {
     const [loading, setLoading] = useState(true);
     const [analysis, setAnalysis] = useState<any>(null);
 
+    // Register custom node types
+    const nodeTypes = useMemo(() => ({ cyber: CyberNode }), []);
+
     useEffect(() => {
         const fetchGraphData = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/forensic/graph/${companySymbol}`);
+                const response = await fetch(`/api/forensic/graph/${companySymbol}`);
                 const data = await response.json();
 
                 if (data.graph_data) {
                     // Process nodes
                     const processedNodes = data.graph_data.nodes.map((node: any) => ({
                         id: node.id,
-                        position: node.position,
+                        // Spread out random positions more for better visibility
+                        position: node.position || { x: Math.random() * 800, y: Math.random() * 600 },
                         data: {
                             label: node.data.label,
                             riskScore: node.data.riskScore,
-                            isShell: node.data.isShell
+                            isShell: node.data.isShell,
+                            type: node.data.type // Pass original type to CyberNode
                         },
-                        style: {
-                            background: node.data.isShell ? '#fee2e2' : '#f8fafc',
-                            border: node.data.isShell ? '2px solid #ef4444' : '1px solid #94a3b8',
-                            borderRadius: '8px',
-                            padding: '10px',
-                            width: 150,
-                            fontSize: '12px',
-                            fontWeight: node.data.isShell ? 'bold' : 'normal',
-                            boxShadow: node.data.isShell ? '0 0 15px rgba(239, 68, 68, 0.6)' : 'none',
-                            animation: node.data.isShell ? 'pulse 2s infinite' : 'none'
-                        },
-                        type: 'default' // Using default node type for simplicity for now
+                        type: 'cyber' // Use our custom node
                     }));
 
                     // Process edges
@@ -57,12 +48,16 @@ const ForensicGraph: React.FC<ForensicGraphProps> = ({ companySymbol }) => {
                         id: link.id,
                         source: link.source,
                         target: link.target,
-                        animated: link.animated,
+                        animated: true,
                         label: link.data.type === 'transfer' ? `₹${(link.data.amount / 100000).toFixed(1)}L` : '',
-                        style: { stroke: link.data.type === 'transfer' ? '#ef4444' : '#94a3b8', strokeWidth: 2 },
+                        style: {
+                            stroke: link.data.type === 'transfer' ? '#ef4444' : '#475569',
+                            strokeWidth: link.data.type === 'transfer' ? 2 : 1
+                        },
+                        labelStyle: { fill: '#94a3b8', fontSize: 10 },
                         markerEnd: {
                             type: MarkerType.ArrowClosed,
-                            color: link.data.type === 'transfer' ? '#ef4444' : '#94a3b8',
+                            color: link.data.type === 'transfer' ? '#ef4444' : '#475569',
                         },
                     }));
 
@@ -83,15 +78,18 @@ const ForensicGraph: React.FC<ForensicGraphProps> = ({ companySymbol }) => {
     }, [companySymbol, setNodes, setEdges]);
 
     if (loading) {
-        return <div className="flex items-center justify-center h-64">Loading Forensic Graph...</div>;
+        return <div className="flex items-center justify-center h-64 text-slate-400 font-mono">Initializing Neural Link...</div>;
     }
 
     return (
-        <div className="w-full h-[500px] bg-slate-50 rounded-xl border border-slate-200 relative overflow-hidden">
+        <div className="w-full h-[500px] bg-slate-50 rounded-xl border border-slate-200 relative overflow-hidden shadow-xl">
             {/* Risk Overlay */}
-            <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur p-4 rounded-lg shadow-lg border border-red-100">
-                <h4 className="text-sm font-bold text-slate-800 mb-2">Forensic Analysis</h4>
-                <div className="space-y-2 text-xs">
+            <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur-md p-4 rounded-lg shadow-lg border border-red-50">
+                <h4 className="text-sm font-bold text-slate-800 mb-2 font-mono flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    FORENSIC INTELLIGENCE
+                </h4>
+                <div className="space-y-2 text-xs font-mono">
                     <div className="flex justify-between gap-4">
                         <span className="text-slate-500">Shell Companies:</span>
                         <span className="font-bold text-red-600">{analysis?.shell_company_count || 0}</span>
@@ -99,10 +97,6 @@ const ForensicGraph: React.FC<ForensicGraphProps> = ({ companySymbol }) => {
                     <div className="flex justify-between gap-4">
                         <span className="text-slate-500">Circular Loops:</span>
                         <span className="font-bold text-orange-600">{analysis?.circular_trading_loops?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                        <span className="text-slate-500">Risk Flags:</span>
-                        <span className="font-bold text-red-600">{analysis?.risk_flags || 0}</span>
                     </div>
                 </div>
             </div>
@@ -112,20 +106,13 @@ const ForensicGraph: React.FC<ForensicGraphProps> = ({ companySymbol }) => {
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
+                nodeTypes={nodeTypes}
                 fitView
-                attributionPosition="bottom-left"
+                className="bg-slate-50"
             >
-                <Background color="#cbd5e1" gap={16} />
-                <Controls />
+                <Background color="#cbd5e1" gap={20} size={1} />
+                <Controls className="!bg-white !border-slate-200 !fill-slate-600 !shadow-md" />
             </ReactFlow>
-
-            <style jsx global>{`
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-      `}</style>
         </div>
     );
 };

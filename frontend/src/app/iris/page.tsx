@@ -13,6 +13,9 @@ import ForensicGraph from "@/components/ForensicGraph";
 import RiskDashboard from '@/components/RiskDashboard';
 import ChatInterface from "@/components/ChatInterface";
 import SentimentSection from '@/components/SentimentSection';
+import LiquidGauge from '@/components/charts/LiquidGauge';
+import ComplianceHeatmap from '@/components/charts/ComplianceHeatmap';
+import AuditTimeline from '@/components/charts/AuditTimeline';
 import axios from 'axios'; // Added axios import
 import { AlertTriangle, Search, ShieldCheck, FileText, BarChart3, PieChart, Activity, FileBarChart } from 'lucide-react';
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -617,8 +620,8 @@ export default function IRISAnalyticsDashboard() {
         </div>
       </div>
 
-      {/* Home Page Navbar */}
-      <div className="relative z-50">
+      {/* Home Page Navbar - Mobile Only */}
+      <div className="relative z-50 md:hidden">
         <CardNav
           logo="/logo.png"
           logoAlt="I.R.I.S."
@@ -1440,138 +1443,190 @@ export default function IRISAnalyticsDashboard() {
           }
           {
             analysisData && activeTab === 'overview' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-                {/* Forensic Analysis Card */}
-                <div
-                  className="neumorphic-card rounded-3xl p-8 lg:col-span-2 group"
-                  style={{
-                    background: 'var(--card)', color: 'var(--foreground)',
-                    backdropFilter: 'blur(15px)',
-                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
-                    border: '2px solid rgba(123, 104, 238, 0.2)'
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-8">
-                    <div>
-                      <div className="flex items-center gap-4 mb-2">
-                        <h2 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Forensic Analysis</h2>
-                        <TextTicker
-                          texts={["SYSTEM ONLINE", "MONITORING TRANSACTIONS", "RISK: LOW", "ANALYZING PATTERNS"]}
-                          className="hidden md:block px-3 py-1 rounded-md bg-black/5 dark:bg-white/5 text-xs font-bold text-indigo-500"
-                        />
+              <>
+                {/* Risk Assessment Overview Card */}
+                <div className="neumorphic-card rounded-3xl p-8 mb-6 transition-all hover:scale-[1.01]" style={{
+                  background: 'var(--card)', color: 'var(--foreground)',
+                  backdropFilter: 'blur(15px)',
+                  boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
+                  border: '2px solid rgba(255, 107, 157, 0.2)'
+                }}>
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-pink-500/10 rounded-xl">
+                          <Activity className="w-6 h-6 text-pink-500" />
+                        </div>
+                        <h2 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Risk Assessment</h2>
                       </div>
-                      <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>29 comprehensive financial metrics</p>
+                      <p className="text-sm font-medium mb-6" style={{ color: 'var(--muted-foreground)' }}>6-category weighted analysis</p>
+
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl" style={{
+                        background: (analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? 'rgba(254, 226, 226, 0.5)' : (analysisData.risk_assessment?.overall_risk_score || 0) > 40 ? 'rgba(254, 243, 199, 0.5)' : 'rgba(220, 252, 231, 0.5)',
+                        border: `1px solid ${(analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? '#fca5a5' : (analysisData.risk_assessment?.overall_risk_score || 0) > 40 ? '#fcd34d' : '#86efac'}`
+                      }}>
+                        <span className={`w-2 h-2 rounded-full ${(analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? 'bg-red-500 animate-pulse' : (analysisData.risk_assessment?.overall_risk_score || 0) > 40 ? 'bg-orange-500' : 'bg-green-500'}`}></span>
+                        <span className="font-bold text-sm" style={{
+                          color: (analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? '#b91c1c' : (analysisData.risk_assessment?.overall_risk_score || 0) > 40 ? '#b45309' : '#15803d'
+                        }}>
+                          {(analysisData.risk_assessment?.overall_risk_score || 0) > 70 ? 'HIGH RISK' : (analysisData.risk_assessment?.overall_risk_score || 0) > 40 ? 'MODERATE RISK' : 'LOW RISK'}
+                        </span>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setIsFormulasModalOpen(true)}
-                      className="px-6 py-3 rounded-2xl text-sm font-semibold transition-all neumorphic-button"
-                      style={{
-                        background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
-                        boxShadow: '6px 6px 12px rgba(123, 104, 238, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
-                        color: '#fff'
-                      }}
-                    >
-                      📊 View Details
-                    </button>
-                  </div>
 
-                  <ForensicFormulasModal
-                    isOpen={isFormulasModalOpen}
-                    onClose={() => setIsFormulasModalOpen(false)}
-                    analysisData={analysisData}
-                  />
+                    <div className="flex-1 flex justify-center items-center">
+                      <GaugeChart
+                        value={Number(analysisData.risk_assessment?.overall_risk_score) || 49}
+                        label="Risk Score"
+                        size={240}
+                      />
+                    </div>
 
-                  {/* Metrics List */}
-                  <div className="space-y-4">
-                    {[
-                      {
-                        name: 'Altman Z-Score',
-                        value: analysisData.altman_z_score?.altman_z_score?.z_score || 'N/A',
-                        status: analysisData.altman_z_score?.altman_z_score?.classification || 'Unknown',
-                        color: analysisData.altman_z_score?.altman_z_score?.risk_level === 'LOW' ? '#4ade80' : '#FF6B9D'
-                      },
-                      {
-                        name: 'Beneish M-Score',
-                        value: analysisData.beneish_m_score?.beneish_m_score?.m_score || 'N/A',
-                        status: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? 'Risk' : 'Safe',
-                        color: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? '#FF6B9D' : '#4ade80'
-                      },
-                      {
-                        name: 'Debt to Equity',
-                        value: analysisData.financial_ratios?.financial_ratios?.['2025-03-31']?.debt_to_equity || 'N/A',
-                        status: 'Good',
-                        color: '#4ade80'
-                      },
-                      {
-                        name: 'Current Ratio',
-                        value: '1.32',
-                        status: 'Moderate',
-                        color: '#7B68EE'
-                      },
-                    ].map((metric, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-6 rounded-2xl group"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.7)',
-                          boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)',
-                          border: `1px solid ${metric.color}20`
-                        }}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center"
-                            style={{
-                              background: `linear-gradient(135deg, ${metric.color}, ${metric.color}dd)`,
-                              boxShadow: `0 0 15px ${metric.color}30`
-                            }}
-                          >
-                            {metric.name.includes('Z-Score') ? (
-                              <Activity className="w-5 h-5 text-white" />
-                            ) : metric.name.includes('M-Score') ? (
-                              <Search className="w-5 h-5 text-white" />
-                            ) : metric.name.includes('Debt') ? (
-                              <PieChart className="w-5 h-5 text-white" />
-                            ) : (
-                              <BarChart3 className="w-5 h-5 text-white" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-bold text-base mb-1" style={{ color: 'var(--foreground)' }}>{metric.name}</p>
-                            <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
-                              background: `${metric.color}15`,
-                              color: metric.color,
-                              border: `1px solid ${metric.color}30`
-                            }}>
-                              {metric.status}
-                            </span>
-                          </div>
+                    <div className="flex-1 space-y-3">
+                      <h4 className="font-semibold text-sm uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>Top Risk Factors</h4>
+                      {analysisData.risk_assessment?.risk_factors?.slice(0, 3).map((factor: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                          <AlertTriangle className="w-4 h-4 text-orange-400 mt-0.5" />
+                          <span style={{ color: 'var(--foreground)' }}>{factor}</span>
                         </div>
-                        <div className="text-right">
-                          <span className="text-3xl font-bold" style={{ color: metric.color }}>{metric.value}</span>
-                          <div className="w-16 h-1 rounded-full mt-2" style={{ background: `${metric.color}20` }}>
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: metric.name.includes('Z-Score') ? '85%' : '70%',
-                                background: `linear-gradient(90deg, ${metric.color}, ${metric.color}aa)`
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      )) || <div className="text-sm text-gray-500">No major factors identified</div>}
+                    </div>
                   </div>
                 </div>
 
-                {/* Risk Assessment Dashboard Component */}
-                <RiskDashboard
-                  riskScore={null}
-                  analysisResult={analysisData}
-                  isLoading={isAnalyzing}
-                />
-              </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+                  {/* Forensic Analysis Card */}
+                  <div
+                    className="neumorphic-card rounded-3xl p-8 lg:col-span-2 group"
+                    style={{
+                      background: 'var(--card)', color: 'var(--foreground)',
+                      backdropFilter: 'blur(15px)',
+                      boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
+                      border: '2px solid rgba(123, 104, 238, 0.2)'
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <div className="flex items-center gap-4 mb-2">
+                          <h2 className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>Forensic Analysis</h2>
+                          <TextTicker
+                            texts={["SYSTEM ONLINE", "MONITORING TRANSACTIONS", "RISK: LOW", "ANALYZING PATTERNS"]}
+                            className="hidden md:block px-3 py-1 rounded-md bg-black/5 dark:bg-white/5 text-xs font-bold text-indigo-500"
+                          />
+                        </div>
+                        <p className="text-sm font-medium" style={{ color: 'var(--muted-foreground)' }}>29 comprehensive financial metrics</p>
+                      </div>
+                      <button
+                        onClick={() => setIsFormulasModalOpen(true)}
+                        className="px-6 py-3 rounded-2xl text-sm font-semibold transition-all neumorphic-button"
+                        style={{
+                          background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
+                          boxShadow: '6px 6px 12px rgba(123, 104, 238, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
+                          color: '#fff'
+                        }}
+                      >
+                        📊 View Details
+                      </button>
+                    </div>
+
+                    <ForensicFormulasModal
+                      isOpen={isFormulasModalOpen}
+                      onClose={() => setIsFormulasModalOpen(false)}
+                      analysisData={analysisData}
+                    />
+
+                    {/* Metrics List */}
+                    <div className="space-y-4">
+                      {[
+                        {
+                          name: 'Altman Z-Score',
+                          value: analysisData.altman_z_score?.z_score || 'N/A',
+                          status: analysisData.altman_z_score?.classification || 'Unknown',
+                          color: analysisData.altman_z_score?.risk_level === 'LOW' ? '#4ade80' : '#FF6B9D'
+                        },
+                        {
+                          name: 'Beneish M-Score',
+                          value: analysisData.beneish_m_score?.beneish_m_score?.m_score || 'N/A',
+                          status: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? 'Risk' : 'Safe',
+                          color: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? '#FF6B9D' : '#4ade80'
+                        },
+                        {
+                          name: 'Debt to Equity',
+                          value: analysisData.financial_ratios?.financial_ratios?.['2025-03-31']?.debt_to_equity || 'N/A',
+                          status: 'Good',
+                          color: '#4ade80'
+                        },
+                        {
+                          name: 'Current Ratio',
+                          value: '1.32',
+                          status: 'Moderate',
+                          color: '#7B68EE'
+                        },
+                      ].map((metric, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-6 rounded-2xl group"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.7)',
+                            boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)',
+                            border: `1px solid ${metric.color}20`
+                          }}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div
+                              className="w-10 h-10 rounded-xl flex items-center justify-center"
+                              style={{
+                                background: `linear-gradient(135deg, ${metric.color}, ${metric.color}dd)`,
+                                boxShadow: `0 0 15px ${metric.color}30`
+                              }}
+                            >
+                              {metric.name.includes('Z-Score') ? (
+                                <Activity className="w-5 h-5 text-white" />
+                              ) : metric.name.includes('M-Score') ? (
+                                <Search className="w-5 h-5 text-white" />
+                              ) : metric.name.includes('Debt') ? (
+                                <PieChart className="w-5 h-5 text-white" />
+                              ) : (
+                                <BarChart3 className="w-5 h-5 text-white" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-bold text-base mb-1" style={{ color: 'var(--foreground)' }}>{metric.name}</p>
+                              <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
+                                background: `${metric.color}15`,
+                                color: metric.color,
+                                border: `1px solid ${metric.color}30`
+                              }}>
+                                {metric.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-3xl font-bold" style={{ color: metric.color }}>{metric.value}</span>
+                            <div className="w-16 h-1 rounded-full mt-2" style={{ background: `${metric.color}20` }}>
+                              <div
+                                className="h-full rounded-full"
+                                style={{
+                                  width: metric.name.includes('Z-Score') ? '85%' : '70%',
+                                  background: `linear-gradient(90deg, ${metric.color}, ${metric.color}aa)`
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Risk Assessment Dashboard Component */}
+                  <RiskDashboard
+                    riskScore={null}
+                    analysisResult={analysisData}
+                    isLoading={isAnalyzing}
+                  />
+                </div>
+              </>
             ) : null
           }
 
@@ -1599,76 +1654,18 @@ export default function IRISAnalyticsDashboard() {
                   </div>
                 </div>
 
-                {/* Compliance Score Overview */}
+                {/* Compliance Score Overview (Enhanced) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                  <div className="flex items-center justify-center">
-                    <div
-                      className="w-48 h-48 rounded-full flex items-center justify-center relative"
-                      style={{
-                        background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)',
-                        boxShadow: '12px 12px 24px rgba(34, 197, 94, 0.3), -12px -12px 24px rgba(255, 255, 255, 0.2)'
-                      }}
-                    >
-                      <div
-                        className="w-40 h-40 rounded-full flex flex-col items-center justify-center relative"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.95)',
-                          boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.1), inset -6px -6px 12px rgba(255,255,255,0.9)'
-                        }}
-                      >
-                        <span className="text-5xl font-bold mb-1" style={{ color: '#22c55e' }}>
-                          {analysisData.compliance_assessment?.overall_compliance_score || 'N/A'}
-                        </span>
-                        <span className="text-sm font-semibold" style={{ color: 'var(--muted-foreground)' }}>Compliance Score</span>
-                        <div className="absolute -top-2 -right-2">
-                          <div className="w-6 h-6 rounded-full bg-white shadow-lg flex items-center justify-center">
-                            <span className="text-xs">%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-center p-6 bg-white rounded-3xl shadow-sm border border-slate-100">
+                    <LiquidGauge
+                      value={analysisData.compliance_assessment?.overall_compliance_score || 0}
+                      title="Goverance Score"
+                    />
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Framework Compliance</h3>
-                    {Object.entries(analysisData.compliance_assessment?.framework_scores || {}).map(([framework, data]: [string, any], index) => {
-                      const frameworkName = framework.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                      // Handle both object format (data.score) and direct number format
-                      const rawScore = typeof data === 'object' && data !== null ? data.score : data;
-                      const score = Math.round(Number(rawScore) || 0);
-                      const color = score > 80 ? '#22c55e' : score > 60 ? '#7B68EE' : '#FF6B9D';
-
-                      return (
-                        <div key={index} className="group">
-                          <div className="flex justify-between text-sm mb-2">
-                            <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{frameworkName}</span>
-                            <span className="font-bold" style={{ color: 'var(--muted-foreground)' }}>{score}%</span>
-                          </div>
-                          <div
-                            className="h-3 rounded-full overflow-hidden relative"
-                            style={{
-                              background: 'var(--card)',
-                              boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.1), inset -2px -2px 4px rgba(255,255,255,0.9)'
-                            }}
-                          >
-                            <div
-                              className="h-full rounded-full transition-all duration-1500 ease-out relative overflow-hidden"
-                              style={{
-                                width: `${score}%`,
-                                background: `linear-gradient(90deg, ${color}, ${color}aa)`
-                              }}
-                            >
-                              <div
-                                className="absolute inset-0 opacity-30"
-                                style={{
-                                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
-                                }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {/* Replaced static list with Interactive Heatmap */}
+                    <ComplianceHeatmap scores={analysisData.compliance_assessment?.framework_scores || {}} />
                   </div>
                 </div>
 
@@ -1703,46 +1700,12 @@ export default function IRISAnalyticsDashboard() {
                     </div>
                   </div>
 
-                  <div className="neumorphic-card rounded-2xl p-6" style={{
-                    background: 'rgba(255, 255, 255, 0.7)',
-                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
-                  }}>
-                    <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>Next Review Schedule</h3>
-                    <div className="space-y-4">
-                      <div className="p-4 rounded-xl" style={{
-                        background: 'var(--card)',
-                        boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                        border: '2px solid rgba(34, 197, 94, 0.2)'
-                      }}>
-                        <p className="font-semibold text-lg mb-2" style={{ color: 'var(--foreground)' }}>
-                          {analysisData.compliance_assessment?.compliance_status || 'QUARTERLY'} Review Required
-                        </p>
-                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                          {analysisData.compliance_assessment?.overall_compliance_score > 80
-                            ? 'Annual review sufficient due to strong compliance record'
-                            : analysisData.compliance_assessment?.overall_compliance_score > 60
-                              ? 'Quarterly monitoring recommended'
-                              : 'Monthly compliance checks required'
-                          }
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-3 p-3 rounded-xl" style={{
-                        background: 'var(--card)',
-                        boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)',
-                        border: '1px solid rgba(139, 92, 246, 0.2)'
-                      }}>
-                        <div className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-sm">📅</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold" style={{ color: 'var(--foreground)' }}>Next Review Date</p>
-                          <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                            {analysisData.compliance_assessment?.next_review_date || 'Q2 2025'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Replaced Schedule with Visual Timeline */}
+                  <div className="h-full">
+                    <AuditTimeline
+                      nextDate={analysisData.compliance_assessment?.next_review_date}
+                      events={analysisData.compliance_assessment?.audit_history}
+                    />
                   </div>
                 </div>
               </div>

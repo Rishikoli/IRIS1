@@ -252,10 +252,12 @@ class ForensicAnalysisAgent:
         tax_expense = get_field_value(["tax_expense", "Income Tax Expense", "Tax Expense", "TaxExpense"], data)
 
         return {
-            "cost_of_revenue_pct": (cost_of_revenue / total_revenue) * 100,
+            "revenue_pct": 100.0,
+            "cogs_pct": (cost_of_revenue / total_revenue) * 100,
             "gross_profit_pct": (gross_profit / total_revenue) * 100,
+            "operating_expenses_pct": ((gross_profit - operating_income) / total_revenue) * 100,
             "operating_income_pct": (operating_income / total_revenue) * 100,
-            "net_profit_pct": (net_profit / total_revenue) * 100,
+            "net_income_pct": (net_profit / total_revenue) * 100,
             "interest_expense_pct": (interest_expense / total_revenue) * 100,
             "tax_expense_pct": (tax_expense / total_revenue) * 100
         }
@@ -288,11 +290,13 @@ class ForensicAnalysisAgent:
         total_equity = get_field_value(["total_equity", "Stockholders Equity", "StockholdersEquity", "Total Equity Gross Minority Interest"], data)
 
         return {
+            "total_assets_pct": 100.0,
             "current_assets_pct": (current_assets / total_assets) * 100,
             "non_current_assets_pct": ((total_assets - current_assets) / total_assets) * 100,
+            "total_liabilities_pct": (data.get("total_liabilities", 0) / total_assets) * 100,
             "current_liabilities_pct": (current_liabilities / total_assets) * 100,
             "non_current_liabilities_pct": ((data.get("total_liabilities", 0) - current_liabilities) / total_assets) * 100,
-            "total_equity_pct": (total_equity / total_assets) * 100
+            "shareholders_equity_pct": (total_equity / total_assets) * 100
         }
     
     def horizontal_analysis(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -690,6 +694,7 @@ class ForensicAnalysisAgent:
                 balance_sheet.get("retainedEarnings") or
                 balance_sheet.get("Retained Earnings") or
                 balance_sheet.get("retained_earnings") or
+                balance_sheet.get("RetainedEarnings") or
                 0
             )
 
@@ -697,7 +702,11 @@ class ForensicAnalysisAgent:
             total_equity = (
                 balance_sheet.get("totalStockholdersEquity") or
                 balance_sheet.get("Total Stockholders Equity") or
+                balance_sheet.get("Total Stockholder Equity") or  # Yahoo: Singular
+                balance_sheet.get("Stockholders Equity") or       # Yahoo: Short
+                balance_sheet.get("Stockholder Equity") or
                 balance_sheet.get("total_equity") or
+                balance_sheet.get("Total Equity Gross Minority Interest") or
                 0
             )
 
@@ -705,9 +714,17 @@ class ForensicAnalysisAgent:
             total_liabilities = (
                 balance_sheet.get("totalLiabilities") or
                 balance_sheet.get("Total Liabilities") or
+                balance_sheet.get("Total Liabilities Net Minority Interest") or # Yahoo: Full
                 balance_sheet.get("total_liabilities") or
                 0
             )
+
+            # Impute Total Liabilities if missing (critical for Z-Score)
+            if total_liabilities == 0 and total_assets != 0:
+                # Accounting Equation: Assets = Liabilities + Equity  =>  Liabilities = Assets - Equity
+                # Note: Equity can be negative for distressed companies
+                if total_equity != 0:
+                    total_liabilities = total_assets - total_equity
 
             # Total Revenue
             total_revenue = (
@@ -795,19 +812,85 @@ class ForensicAnalysisAgent:
         try:
             # Extract current period data with proper field mapping
             curr_revenue = current_period.get("totalRevenue") or current_period.get("Total Revenue") or 0
-            curr_receivables = current_period.get("totalCurrentAssets") or current_period.get("Total Current Assets") or 0
+            curr_receivables = (current_period.get("netReceivables") or 
+                              current_period.get("Net Receivables") or 
+                              current_period.get("totalCurrentAssets") or # Fallback
+                              current_period.get("Total Current Assets") or 
+                              0)
             curr_gross_profit = current_period.get("grossProfit") or current_period.get("Gross Profit") or 0
             curr_total_assets = current_period.get("totalAssets") or current_period.get("Total Assets") or 0
-            curr_sga = current_period.get("sellingGeneralAdministrative") or current_period.get("SG&A Expense") or 0
-            curr_depreciation = current_period.get("depreciation") or 0
+            curr_sga = (current_period.get("sellingGeneralAdministrative") or 
+                       current_period.get("Selling General And Administration") or 
+                       current_period.get("SG&A Expense") or 
+                       0)
+            curr_depreciation = (current_period.get("depreciation") or 
+                               current_period.get("Depreciation And Amortization In Income Statement") or
+                               current_period.get("Depreciation And Amortization") or
+                               0)
+            curr_current_assets = (current_period.get("totalCurrentAssets") or 
+                                 current_period.get("Total Current Assets") or 
+                                 current_period.get("current_assets") or 
+                                 0)
+            curr_ppe = (current_period.get("netPPE") or 
+                      current_period.get("Net PPE") or 
+                      current_period.get("pp_and_e_net") or 
+                      0)
+            curr_securities = (current_period.get("investments") or 
+                             current_period.get("Investments") or 
+                             0) # Simplified
+            curr_current_liabilities = (current_period.get("totalCurrentLiabilities") or 
+                                      current_period.get("Total Current Liabilities") or 
+                                      current_period.get("current_liabilities") or 
+                                      0)
+            curr_lt_debt = (current_period.get("longTermDebt") or 
+                          current_period.get("Long Term Debt") or 
+                          current_period.get("long_term_debt") or 
+                          0)
+            curr_net_income = (current_period.get("netIncome") or 
+                             current_period.get("Net Income") or 
+                             current_period.get("net_profit") or 
+                             0)
+            curr_cash_ops = (current_period.get("totalCashFromOperatingActivities") or 
+                           current_period.get("Total Cash From Operating Activities") or 
+                           current_period.get("operating_cash_flow") or 
+                           0)
 
             # Extract previous period data with proper field mapping
             prev_revenue = previous_period.get("totalRevenue") or previous_period.get("Total Revenue") or 0
-            prev_receivables = previous_period.get("totalCurrentAssets") or previous_period.get("Total Current Assets") or 0
+            prev_receivables = (previous_period.get("netReceivables") or 
+                              previous_period.get("Net Receivables") or 
+                              previous_period.get("totalCurrentAssets") or 
+                              previous_period.get("Total Current Assets") or 
+                              0)
             prev_gross_profit = previous_period.get("grossProfit") or previous_period.get("Gross Profit") or 0
             prev_total_assets = previous_period.get("totalAssets") or previous_period.get("Total Assets") or 0
-            prev_sga = previous_period.get("sellingGeneralAdministrative") or previous_period.get("SG&A Expense") or 0
-            prev_depreciation = previous_period.get("depreciation") or 0
+            prev_sga = (previous_period.get("sellingGeneralAdministrative") or 
+                       previous_period.get("Selling General And Administration") or 
+                       previous_period.get("SG&A Expense") or 
+                       0)
+            prev_depreciation = (previous_period.get("depreciation") or 
+                               previous_period.get("Depreciation And Amortization In Income Statement") or
+                               previous_period.get("Depreciation And Amortization") or
+                               0)
+            prev_current_assets = (previous_period.get("totalCurrentAssets") or 
+                                 previous_period.get("Total Current Assets") or 
+                                 previous_period.get("current_assets") or 
+                                 0)
+            prev_ppe = (previous_period.get("netPPE") or 
+                      previous_period.get("Net PPE") or 
+                      previous_period.get("pp_and_e_net") or 
+                      0)
+            prev_securities = (previous_period.get("investments") or 
+                             previous_period.get("Investments") or 
+                             0) # Simplified
+            prev_current_liabilities = (previous_period.get("totalCurrentLiabilities") or 
+                                      previous_period.get("Total Current Liabilities") or 
+                                      previous_period.get("current_liabilities") or 
+                                      0)
+            prev_lt_debt = (previous_period.get("longTermDebt") or 
+                          previous_period.get("Long Term Debt") or 
+                          previous_period.get("long_term_debt") or 
+                          0)
 
             # Calculate all 8 M-Score variables
             variables = {}
@@ -828,14 +911,27 @@ class ForensicAnalysisAgent:
             else:
                 variables["GMI"] = 1
 
-            # 3. AQI (Asset Quality Index) - Simplified for this implementation
-            variables["AQI"] = 1
+            # 3. AQI (Asset Quality Index)
+            if curr_total_assets != 0 and prev_total_assets != 0:
+                # Non-Current Assets approx = Total - Current - PPE - Securities
+                # Actually AQI definition: (1 - (Current Assets + PPE + Securities)/Total Assets)
+                aq_curr = 1 - ((curr_current_assets + curr_ppe + curr_securities) / curr_total_assets)
+                aq_prev = 1 - ((prev_current_assets + prev_ppe + prev_securities) / prev_total_assets)
+                variables["AQI"] = aq_curr / aq_prev if aq_prev != 0 else 1
+            else:
+                variables["AQI"] = 1
 
             # 4. SGI (Sales Growth Index)
             variables["SGI"] = curr_revenue / prev_revenue if prev_revenue != 0 else 1
 
-            # 5. DEPI (Depreciation Index) - Simplified for this implementation
-            variables["DEPI"] = 1
+            # 5. DEPI (Depreciation Index)
+            # Rate = Depreciation / (PPE + Depreciation)
+            if (curr_ppe + curr_depreciation) != 0 and (prev_ppe + prev_depreciation) != 0:
+                dep_rate_curr = curr_depreciation / (curr_ppe + curr_depreciation)
+                dep_rate_prev = prev_depreciation / (prev_ppe + prev_depreciation)
+                variables["DEPI"] = dep_rate_prev / dep_rate_curr if dep_rate_curr != 0 else 1
+            else:
+                variables["DEPI"] = 1
 
             # 6. SGAI (SG&A Index)
             if curr_revenue != 0 and prev_revenue != 0:
@@ -845,11 +941,21 @@ class ForensicAnalysisAgent:
             else:
                 variables["SGAI"] = 1
 
-            # 7. LVGI (Leverage Index) - Simplified for this implementation
-            variables["LVGI"] = 1
+            # 7. LVGI (Leverage Index)
+            if curr_total_assets != 0 and prev_total_assets != 0:
+                lev_curr = (curr_current_liabilities + curr_lt_debt) / curr_total_assets
+                lev_prev = (prev_current_liabilities + prev_lt_debt) / prev_total_assets
+                variables["LVGI"] = lev_curr / lev_prev if lev_prev != 0 else 1
+            else:
+                variables["LVGI"] = 1
 
-            # 8. TATA (Total Accruals to Total Assets) - Simplified for this implementation
-            variables["TATA"] = 0
+            # 8. TATA (Total Accruals to Total Assets)
+            # Accruals = Net Income - Cash from Ops (Simplified)
+            if curr_total_assets != 0:
+                accruals = curr_net_income - curr_cash_ops
+                variables["TATA"] = accruals / curr_total_assets
+            else:
+                variables["TATA"] = 0
 
             # Calculate proper M-Score
             m_score = (-4.84 + 0.92 * variables["DSRI"] + 0.528 * variables["GMI"] +
@@ -1032,104 +1138,110 @@ class ForensicAnalysisAgent:
             benford_result = self.benford_analysis(financial_statements)
             results["benford_analysis"] = benford_result
             
-            # Altman Z-Score (if we have balance sheet and income statement)
-            balance_sheet = next((s for s in financial_statements 
-                                if s.get("statement_type") == "balance_sheet"), None)
-            income_statement = next((s for s in financial_statements 
-                                   if s.get("statement_type") == "income_statement"), None)
+            # Altman Z-Score (Historical Analysis)
+            z_score_history = []
+            latest_z_score = None
             
-            if balance_sheet and income_statement:
-                z_score_result = self.calculate_altman_z_score(
-                    balance_sheet.get("data", {}), 
-                    income_statement.get("data", {})
-                )
-                results["altman_z_score"] = z_score_result
+            # Group statements by period for Z-score calculation
+            statements_by_period = {}
+            for statement in financial_statements:
+                period = statement.get("period_end")
+                stmt_type = statement.get("statement_type")
+                if period not in statements_by_period:
+                    statements_by_period[period] = {}
+                statements_by_period[period][stmt_type] = statement.get("data", {})
+            
+            # Sort periods chronologically
+            sorted_periods = sorted(statements_by_period.keys())
+            
+            for period in sorted_periods:
+                period_data = statements_by_period[period]
+                bs_data = period_data.get("balance_sheet", {})
+                is_data = period_data.get("income_statement", {})
+                
+                if bs_data and is_data:
+                    z_result = self.calculate_altman_z_score(bs_data, is_data)
+                    
+                    if z_result.get("success"):
+                        # Add period info to the result
+                        z_data = z_result.get("altman_z_score", {})
+                        z_data["period"] = period
+                        z_score_history.append(z_data)
+            
+            # Use the most recent period for the main display, but include history
+            if z_score_history:
+                # The last item in sorted list is the most recent
+                latest_z_score_data = z_score_history[-1]
+                
+                results["altman_z_score"] = {
+                    "z_score": latest_z_score_data["z_score"],
+                    "classification": latest_z_score_data["classification"],
+                    "risk_level": latest_z_score_data["risk_level"],
+                    "components": latest_z_score_data["components"],
+                    "interpretation": latest_z_score_data["interpretation"],
+                    "historical_z_scores": z_score_history
+                }
             
             # Beneish M-Score (if we have multiple periods)
-            if len(financial_statements) >= 2:
-                # Use the detailed M-Score calculation with proper variable extraction
-                current_period = financial_statements[-1].get("data", {})
-                previous_period = financial_statements[-2].get("data", {})
+            m_score_history = []
+            
+            if len(sorted_periods) >= 2:
+                # We need at least 2 periods for comparison
+                # Reverse iterate to calculate history (Newest to Oldest pairs)
+                # i goes from N-1 down to 1
+                for i in range(len(sorted_periods) - 1, 0, -1):
+                    current_period_date = sorted_periods[i]
+                    prev_period_date = sorted_periods[i-1]
+                    
+                    # Find statements for these periods
+                    curr_bs = next((s for s in financial_statements 
+                                  if s.get("statement_type") == "balance_sheet" and 
+                                     s.get("period_end") == current_period_date), None)
+                    curr_is = next((s for s in financial_statements 
+                                  if s.get("statement_type") == "income_statement" and 
+                                     s.get("period_end") == current_period_date), None)
+                                     
+                    prev_bs = next((s for s in financial_statements 
+                                  if s.get("statement_type") == "balance_sheet" and 
+                                     s.get("period_end") == prev_period_date), None)
+                    prev_is = next((s for s in financial_statements 
+                                  if s.get("statement_type") == "income_statement" and 
+                                     s.get("period_end") == prev_period_date), None)
+                                     
+                    if curr_bs and curr_is and prev_bs and prev_is:
+                        # Combine BS and IS data for the calculation method
+                        curr_data = {**curr_bs.get("data", {}), **curr_is.get("data", {})}
+                        prev_data = {**prev_bs.get("data", {}), **prev_is.get("data", {})}
+                        
+                        m_result = self.calculate_beneish_m_score(curr_data, prev_data)
+                        
+                        if m_result.get("success"):
+                            m_data = m_result.get("beneish_m_score", {})
+                            m_data["period"] = current_period_date
+                            m_score_history.append(m_data)
 
-                # Extract current period data with proper field mapping
-                curr_revenue = current_period.get("totalRevenue") or current_period.get("Total Revenue") or 0
-                curr_receivables = current_period.get("totalCurrentAssets") or current_period.get("Total Current Assets") or 0
-                curr_gross_profit = current_period.get("grossProfit") or current_period.get("Gross Profit") or 0
-                curr_total_assets = current_period.get("totalAssets") or current_period.get("Total Assets") or 0
-                curr_sga = current_period.get("sellingGeneralAdministrative") or current_period.get("SG&A Expense") or 0
-                curr_depreciation = current_period.get("depreciation") or 0
+            # Sort history by date (ascending)
+            m_score_history.sort(key=lambda x: x.get("period", ""))
 
-                # Extract previous period data with proper field mapping
-                prev_revenue = previous_period.get("totalRevenue") or previous_period.get("Total Revenue") or 0
-                prev_receivables = previous_period.get("totalCurrentAssets") or previous_period.get("Total Current Assets") or 0
-                prev_gross_profit = previous_period.get("grossProfit") or previous_period.get("Gross Profit") or 0
-                prev_total_assets = previous_period.get("totalAssets") or previous_period.get("Total Assets") or 0
-                prev_sga = previous_period.get("sellingGeneralAdministrative") or previous_period.get("SG&A Expense") or 0
-                prev_depreciation = previous_period.get("depreciation") or 0
-
-                # Calculate all 8 M-Score variables
-                variables = {}
-
-                # 1. DSRI (Days Sales in Receivables Index)
-                if curr_revenue != 0 and prev_revenue != 0:
-                    dsri_curr = curr_receivables / curr_revenue
-                    dsri_prev = prev_receivables / prev_revenue
-                    variables["DSRI"] = dsri_curr / dsri_prev if dsri_prev != 0 else 1
-                else:
-                    variables["DSRI"] = 1
-
-                # 2. GMI (Gross Margin Index)
-                if curr_revenue != 0 and prev_revenue != 0:
-                    gm_prev = prev_gross_profit / prev_revenue
-                    gm_curr = curr_gross_profit / curr_revenue
-                    variables["GMI"] = gm_prev / gm_curr if gm_curr != 0 else 1
-                else:
-                    variables["GMI"] = 1
-
-                # 3. AQI (Asset Quality Index) - Simplified for this implementation
-                variables["AQI"] = 1
-
-                # 4. SGI (Sales Growth Index)
-                variables["SGI"] = curr_revenue / prev_revenue if prev_revenue != 0 else 1
-
-                # 5. DEPI (Depreciation Index) - Simplified for this implementation
-                variables["DEPI"] = 1
-
-                # 6. SGAI (SG&A Index)
-                if curr_revenue != 0 and prev_revenue != 0:
-                    sga_rate_curr = curr_sga / curr_revenue
-                    sga_rate_prev = prev_sga / prev_revenue
-                    variables["SGAI"] = sga_rate_curr / sga_rate_prev if sga_rate_prev != 0 else 1
-                else:
-                    variables["SGAI"] = 1
-
-                # 7. LVGI (Leverage Index) - Simplified for this implementation
-                variables["LVGI"] = 1
-
-                # 8. TATA (Total Accruals to Total Assets) - Simplified for this implementation
-                variables["TATA"] = 0
-
-                # Calculate proper M-Score
-                m_score = (-4.84 + 0.92 * variables["DSRI"] + 0.528 * variables["GMI"] +
-                          0.404 * variables["AQI"] + 0.892 * variables["SGI"] +
-                          0.115 * variables["DEPI"] - 0.172 * variables["SGAI"] +
-                          4.679 * variables["TATA"] - 0.327 * variables["LVGI"])
-
-                # Classification
-                is_manipulator = m_score > -1.78
-                risk_level = "HIGH" if is_manipulator else "LOW"
-
+            if m_score_history:
+                latest_m_score_data = m_score_history[-1]
                 results["beneish_m_score"] = {
                     "success": True,
                     "beneish_m_score": {
-                        "m_score": round(m_score, 3),
-                        "threshold": -1.78,
-                        "is_likely_manipulator": is_manipulator,
-                        "risk_level": risk_level,
-                        "variables": {k: round(v, 3) for k, v in variables.items()},
-                        "interpretation": "High probability of earnings manipulation" if is_manipulator
-                                       else "Low probability of earnings manipulation"
+                        "m_score": latest_m_score_data["m_score"],
+                        "threshold": latest_m_score_data["threshold"],
+                        "is_likely_manipulator": latest_m_score_data["is_likely_manipulator"],
+                        "risk_level": latest_m_score_data["risk_level"],
+                        "variables": latest_m_score_data["variables"],
+                        "interpretation": latest_m_score_data["interpretation"],
+                        "historical_m_scores": m_score_history
                     },
+                    "analysis_date": datetime.now().isoformat()
+                }
+            else:
+                results["beneish_m_score"] = {
+                    "success": False, 
+                    "error": "Insufficient data for M-Score analysis (need at least 2 consecutive periods)",
                     "analysis_date": datetime.now().isoformat()
                 }
             

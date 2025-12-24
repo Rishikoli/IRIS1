@@ -13,6 +13,7 @@ const ZScoreChart = dynamic(() => import('@/components/charts/ZScoreChart'), { s
 const MScoreChart = dynamic(() => import('@/components/charts/MScoreChart'), { ssr: false });
 
 
+
 import NetworkGraph from './NetworkGraph';
 import axios from 'axios';
 
@@ -24,7 +25,9 @@ interface ForensicSectionProps {
 }
 
 export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false }: ForensicSectionProps) {
-  const [activeSubTab, setActiveSubTab] = useState('overview');
+  const [activeSubTab, setActiveSubTab] = useState('network');
+
+
   const [networkData, setNetworkData] = useState<any>(null);
   const [isNetworkLoading, setIsNetworkLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -144,14 +147,14 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
     );
   }
 
-  const subTabs = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'network', label: 'RPT Network', icon: '🕸️' },
-    { id: 'sentiment', label: 'Market Sentiment', icon: '📈' },
-    { id: 'ratios', label: 'Financial Ratios', icon: '📈' },
-    { id: 'vertical', label: 'Vertical Analysis', icon: '📊' },
-    { id: 'horizontal', label: 'Horizontal Analysis', icon: '📈' },
+  const RiskExplainabilityChart = dynamic(() => import('@/components/charts/RiskExplainabilityChart'), { ssr: false });
 
+  const subTabs = [
+    { id: 'network', label: 'RPT Network', icon: '🕸️' },
+    { id: 'risk_explainability', label: 'Risk Explainability', icon: '📉' },
+    { id: 'sentiment', label: 'Market Sentiment', icon: '📈' },
+
+    { id: 'ratios', label: 'Financial Ratios', icon: '🔢' },
     { id: 'benford', label: 'Benford\'s Law', icon: '📊' },
     { id: 'zscore', label: 'Altman Z-Score', icon: '⚖️' },
     { id: 'mscore', label: 'Beneish M-Score', icon: '🔍' }
@@ -159,18 +162,30 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
 
   const renderContent = () => {
     switch (activeSubTab) {
-      case 'overview':
-        return <ForensicOverview analysisData={analysisData} networkData={networkData} />;
       case 'network':
-        return <NetworkGraph data={networkData?.graph_data} isLoading={isNetworkLoading} />;
+        return <NetworkGraph data={networkData?.graph_data} cycles={networkData?.cycles} isLoading={isNetworkLoading} />;
+      case 'risk_explainability':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold text-slate-800">Risk Factor Impact Analysis</h3>
+            <p className="text-slate-600">SHAP (SHapley Additive exPlanations) values showing how each factor contributes to the overall risk score.</p>
+            {analysisData?.risk_assessment?.shap_values ? (
+              <RiskExplainabilityChart shapValues={analysisData.risk_assessment.shap_values} />
+            ) : (
+              <div className="p-8 text-center text-slate-500 bg-slate-100 rounded-xl">
+                Risk explainability data not available for this company.
+              </div>
+            )}
+          </div>
+        );
       case 'sentiment':
         return <SentimentSection sentimentData={sentimentData} isLoading={isSentimentLoading} />;
-      case 'ratios':
-        return <FinancialRatiosChart data={analysisData.financial_ratios} />;
       case 'vertical':
         return <VerticalAnalysisChart data={analysisData.vertical_analysis} />;
       case 'horizontal':
         return <HorizontalAnalysisChart data={analysisData.horizontal_analysis} />;
+      case 'ratios':
+        return <FinancialRatiosChart data={analysisData.financial_ratios} />;
 
       case 'benford':
         return <BenfordChart data={analysisData.benford_analysis} />;
@@ -179,7 +194,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
       case 'mscore':
         return <MScoreChart data={analysisData.beneish_m_score} />;
       default:
-        return <ForensicOverview analysisData={analysisData} networkData={networkData} />;
+        return <NetworkGraph data={networkData?.graph_data} cycles={networkData?.cycles} isLoading={isNetworkLoading} />;
     }
   };
 
@@ -259,225 +274,4 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
   );
 }
 
-// Forensic Overview Component
-function ForensicOverview({ analysisData, networkData }: { analysisData: any, networkData: any }) {
-  const metrics = [
-    {
-      name: 'Altman Z-Score',
-      value: analysisData.altman_z_score?.altman_z_score?.z_score || 'N/A',
-      status: analysisData.altman_z_score?.altman_z_score?.classification || 'Unknown',
-      color: analysisData.altman_z_score?.altman_z_score?.risk_level === 'LOW' ? '#4ade80' : '#FF6B9D',
-      icon: '⚖️'
-    },
-    {
-      name: 'Beneish M-Score',
-      value: analysisData.beneish_m_score?.beneish_m_score?.m_score || 'N/A',
-      status: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? 'Risk' : 'Safe',
-      color: analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? '#FF6B9D' : '#4ade80',
-      icon: '🔍'
-    },
 
-    {
-      name: 'Benford Score',
-      value: `${analysisData.benford_analysis?.overall_score || 'N/A'}%`,
-      status: 'Compliance',
-      color: '#f2a09e',
-      icon: '📊'
-    }
-  ];
-
-  return (
-    <div className="space-y-8">
-      {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric, index) => (
-          <div
-            key={index}
-            className="neumorphic-card rounded-2xl p-6 group"
-            style={{
-              background: 'rgba(255, 255, 255, 0.8)',
-              boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)',
-              border: `2px solid ${metric.color}20`
-            }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-xl"
-                  style={{
-                    background: `linear-gradient(135deg, ${metric.color}, ${metric.color}dd)`,
-                    boxShadow: `0 0 15px ${metric.color}30`
-                  }}
-                >
-                  {metric.icon}
-                </div>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: '#64748b' }}>{metric.name}</p>
-                  <p className="text-2xl font-bold" style={{ color: '#1e293b' }}>{metric.value}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs px-3 py-1 rounded-full font-medium" style={{
-                background: `${metric.color}15`,
-                color: metric.color,
-                border: `1px solid ${metric.color}30`
-              }}>
-                {metric.status}
-              </span>
-              <div className="w-16 h-1 rounded-full" style={{ background: `${metric.color}20` }}>
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: metric.name.includes('Anomalies') ? '30%' : '75%',
-                    background: `linear-gradient(90deg, ${metric.color}, ${metric.color}aa)`
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Analysis Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Analysis Summary */}
-        <div className="space-y-6">
-
-
-
-          <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Analysis Summary</h3>
-
-          <div className="space-y-4">
-            <div className="p-6 rounded-2xl" style={{
-              background: 'rgba(255, 255, 255, 0.7)',
-              boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)'
-            }}>
-              <h4 className="font-semibold mb-3" style={{ color: '#1e293b' }}>📊 Financial Ratios</h4>
-              {(() => {
-                const ratios = analysisData.financial_ratios?.financial_ratios || {};
-                const periods = Object.keys(ratios).sort().reverse();
-                const latestPeriod = periods[0];
-                const latestRatios = latestPeriod ? ratios[latestPeriod] : {};
-
-                return (
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Gross Margin:</span>
-                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                        {latestRatios.gross_margin_pct || 'N/A'}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Net Margin:</span>
-                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                        {latestRatios.net_margin_pct || 'N/A'}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">ROE:</span>
-                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                        {latestRatios.roe || 'N/A'}%
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">ROA:</span>
-                      <span className="font-semibold ml-2" style={{ color: '#1e293b' }}>
-                        {latestRatios.roa || 'N/A'}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div className="p-6 rounded-2xl" style={{
-              background: 'rgba(255, 255, 255, 0.7)',
-              boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)'
-            }}>
-              <h4 className="font-semibold mb-3" style={{ color: '#1e293b' }}>⚖️ Risk Indicators</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Bankruptcy Risk:</span>
-                  <span className={`font-semibold ${analysisData.altman_z_score?.altman_z_score?.risk_level === 'LOW' ? 'text-green-600' : 'text-red-600'}`}>
-                    {analysisData.altman_z_score?.altman_z_score?.classification || 'Unknown'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Manipulation Risk:</span>
-                  <span className={`font-semibold ${!analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? 'text-green-600' : 'text-red-600'}`}>
-                    {!analysisData.beneish_m_score?.beneish_m_score?.is_likely_manipulator ? 'Low' : 'High'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Anomalies:</span>
-                  <span className={`font-semibold ${analysisData.anomaly_detection?.anomalies_detected === 0 ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {analysisData.anomaly_detection?.anomalies_detected || 0} detected
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Quick Insights & Globe */}
-        <div className="space-y-6">
-
-
-
-          <h3 className="text-xl font-bold mb-4" style={{ color: '#1e293b' }}>Quick Insights</h3>
-
-          <div className="space-y-4">
-            <div className="p-6 rounded-2xl" style={{
-              background: 'rgba(255, 255, 255, 0.7)',
-              boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)',
-              border: '2px solid rgba(123, 104, 238, 0.2)'
-            }}>
-              <h4 className="font-semibold mb-3 flex items-center gap-2" style={{ color: '#1e293b' }}>
-                <span>🎯</span> Key Findings
-              </h4>
-              <ul className="space-y-2 text-sm" style={{ color: '#64748b' }}>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1">•</span>
-                  Comprehensive analysis of 29 financial metrics completed
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 mt-1">•</span>
-                  Real-time data integration from multiple sources
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className={`mt-1 ${analysisData.anomaly_detection?.anomalies_detected === 0 ? 'text-green-500' : 'text-yellow-500'}`}>•</span>
-                  {analysisData.anomaly_detection?.anomalies_detected === 0 ? 'No significant anomalies detected' : `${analysisData.anomaly_detection?.anomalies_detected} anomalies require attention`}
-                </li>
-              </ul>
-            </div>
-
-            <div className="p-6 rounded-2xl" style={{
-              background: 'rgba(255, 255, 255, 0.7)',
-              boxShadow: 'inset 6px 6px 12px rgba(0,0,0,0.05), inset -6px -6px 12px rgba(255,255,255,0.9)',
-              border: '2px solid rgba(255, 107, 157, 0.2)'
-            }}>
-              <h4 className="font-semibold mb-3 flex items-center gap-2" style={{ color: '#1e293b' }}>
-                <span>📋</span> Recommendations
-              </h4>
-              <ul className="space-y-2 text-sm" style={{ color: '#64748b' }}>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 mt-1">•</span>
-                  Review detailed ratio analysis for trend identification
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 mt-1">•</span>
-                  Monitor anomaly detection results regularly
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-500 mt-1">•</span>
-                  Compare with industry benchmarks for context
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

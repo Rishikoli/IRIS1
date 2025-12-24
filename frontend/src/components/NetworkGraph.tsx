@@ -1,131 +1,107 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, {
-    Node,
-    Edge,
-    Controls,
     Background,
+    Controls,
     useNodesState,
     useEdgesState,
-    MarkerType,
-    ConnectionLineType,
-    ReactFlowProvider,
-    useReactFlow,
-    ReactFlowInstance
+    MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import CyberNode from './graph/CyberNode';
 
 interface NetworkGraphProps {
     data: {
         nodes: any[];
         edges: any[];
     };
+    cycles?: string[][];
     isLoading?: boolean;
 }
 
-const nodeTypes = {
-    // We can define custom node types here if needed
-};
-
-function NetworkGraphContent({ data, isLoading = false }: NetworkGraphProps) {
+export default function NetworkGraph({ data, cycles = [], isLoading = false }: NetworkGraphProps) {
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const { fitView } = useReactFlow();
 
-    React.useEffect(() => {
-        if (data && data.nodes && data.edges) {
-            // Map backend nodes to React Flow nodes
-            const mappedNodes: Node[] = data.nodes.map((node: any) => ({
+    // Register custom node types
+    const nodeTypes = useMemo(() => ({ cyber: CyberNode }), []);
+
+    useEffect(() => {
+        if (data && data.nodes) {
+            // Process Nodes for ReactFlow
+            const processedNodes = data.nodes.map((node: any) => ({
                 id: node.id,
-                type: 'default', // Using default for simplicity, can be 'custom'
+                // Assign random position if removed (ReactFlow needs position)
+                position: node.position || { x: Math.random() * 1000, y: Math.random() * 800 },
                 data: {
-                    label: (
-                        <div className="text-center">
-                            <div className="font-bold text-sm">{node.data.label}</div>
-                            <div className="text-xs text-gray-500">{node.data.position}</div>
-                            {node.data.risk_score > 50 && (
-                                <div className="text-xs text-red-500 font-bold mt-1">Risk: {node.data.risk_score}</div>
-                            )}
-                        </div>
-                    )
+                    label: node.label || node.id,
+                    ...node, // Spread all backend properties (is_shell, color, etc)
+                    // Map ShellHunter logic to CyberNode logic
+                    riskScore: node.riskScore || node.val || 0,
+                    isShell: node.is_shell || node.type === 'shell'
                 },
-                position: node.position,
-                style: {
-                    background: node.data.type === 'company' ? '#eff6ff' :
-                        node.data.type === 'shell' ? '#fef2f2' : '#ffffff',
-                    border: node.data.type === 'company' ? '2px solid #3b82f6' :
-                        node.data.type === 'shell' ? '2px solid #ef4444' : '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    width: 150,
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                }
+                type: 'cyber'
             }));
 
-            // Map backend edges to React Flow edges
-            const mappedEdges: Edge[] = data.edges.map((edge: any) => ({
-                id: edge.id,
+            // Process Edges
+            const processedEdges = data.edges.map((edge: any) => ({
+                id: edge.id || `${edge.source}-${edge.target}`,
                 source: edge.source,
                 target: edge.target,
-                label: edge.label,
                 animated: true,
-                style: edge.style,
-                labelStyle: { fill: edge.data.is_suspicious ? '#ef4444' : '#64748b', fontWeight: 700 },
+                label: edge.label || '',
+                style: {
+                    stroke: edge.color || '#475569',
+                    strokeWidth: edge.is_cycle ? 2.5 : 1.5,
+                    opacity: edge.is_cycle ? 1 : 0.6
+                },
                 markerEnd: {
                     type: MarkerType.ArrowClosed,
-                    color: edge.style.stroke,
+                    color: edge.color || '#475569',
                 },
             }));
 
-            setNodes(mappedNodes);
-            setEdges(mappedEdges);
-
-            // Force fit view after render
-            setTimeout(() => {
-                fitView({ padding: 0.2 });
-            }, 100);
+            setNodes(processedNodes);
+            setEdges(processedEdges);
         }
-    }, [data, setNodes, setEdges, fitView]);
+    }, [data, setNodes, setEdges]);
+
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-[500px] bg-gray-50 rounded-3xl border border-gray-200">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <span className="ml-4 text-gray-500">Building forensic network...</span>
+            <div className="flex items-center justify-center h-[600px] bg-black rounded-3xl border border-gray-800">
+                <div className="flex flex-col items-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mb-4"></div>
+                    <span className="text-red-500 font-mono animate-pulse">Loading Neural Network...</span>
+                </div>
             </div>
         );
     }
 
     if (!data || !data.nodes || data.nodes.length === 0) {
         return (
-            <div className="flex items-center justify-center h-[500px] bg-gray-50 rounded-3xl border border-gray-200">
-                <div className="text-center text-gray-500">
-                    <p className="text-xl mb-2">🕸️</p>
-                    <p>No network data available</p>
+            <div className="flex items-center justify-center h-[600px] bg-black rounded-3xl border border-gray-800">
+                <div className="text-center text-gray-500 font-mono">
+                    <p className="text-4xl mb-4">🕸️</p>
+                    <p>No Data Available</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-[600px] w-full bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="w-full h-[600px] bg-slate-50 rounded-xl border border-slate-200 relative overflow-hidden shadow-xl">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
-                attributionPosition="bottom-right"
+                nodeTypes={nodeTypes}
+                fitView
+                className="bg-slate-50"
             >
-                <Background color="#f1f5f9" gap={16} />
-                <Controls />
+                <Background color="#cbd5e1" gap={20} size={1} />
+                <Controls className="!bg-white !border-slate-200 !fill-slate-600 !shadow-md" />
             </ReactFlow>
         </div>
-    );
-}
-
-export default function NetworkGraph(props: NetworkGraphProps) {
-    return (
-        <ReactFlowProvider>
-            <NetworkGraphContent {...props} />
-        </ReactFlowProvider>
     );
 }

@@ -1,0 +1,85 @@
+{
+    "ind_as": {
+        "ind_as_1_presentation": {
+            "type": "disclosure_check",
+            "description": "Financial statement presentation requirements",
+            "required_fields": ["total_revenue", "net_profit", "total_assets", "total_equity"],
+            "severity": "high",
+            "reference": "Ind AS 1 - Presentation of Financial Statements",
+            "remediation": ["Ensure all required line items are disclosed", "Review financial statement format"]
+        },
+        "ind_as_7_cash_flows": {
+            "type": "ratio_check",
+            "description": "Cash flow adequacy requirements",
+            "ratio": "current_ratio",
+            "min_value": 1.0,
+            "severity": "medium",
+            "reference": "Ind AS 7 - Statement of Cash Flows",
+            "remediation": ["Improve working capital management", "Enhance cash flow forecasting"]
+        }
+    },
+    "sebi": {
+        "sebi_lodr_financial_results": {
+            "type": "disclosure_check",
+            "description": "SEBI LODR financial results disclosure",
+            "required_fields": ["total_revenue", "net_profit", "total_assets"],
+            "severity": "critical",
+            "reference": "SEBI LODR Regulation 33",
+            "remediation": ["File quarterly results within prescribed timeline", "Ensure all mandatory disclosures"]
+        },
+        "sebi_debt_equity_ratio": {
+            "type": "ratio_check",
+            "description": "Debt-equity ratio monitoring",
+            "ratio": "debt_to_equity",
+            "max_value": 2.0,
+            "severity": "medium",
+            "reference": "SEBI Guidelines on Corporate Governance",
+            "remediation": ["Reduce debt levels", "Improve equity base", "Review capital structure"]
+        },
+        "sebi_financial_distress": {
+            "type": "threshold_check",
+            "description": "Financial distress monitoring",
+            "threshold": 1.8,
+            "severity": "high",
+            "reference": "SEBI Circular on Financial Distress",
+            "remediation": ["Implement turnaround strategy", "Engage with lenders", "Consider restructuring"]
+        }
+    },
+    "companies_act": {
+        "companies_act_financial_statements": {
+            "type": "disclosure_check",
+            "description": "Companies Act financial statement requirements",
+            "required_fields": ["total_revenue", "net_profit", "total_assets", "total_equity"],
+            "severity": "critical",
+            "reference": "Companies Act 2013 - Section 129",
+            "remediation": ["Prepare financial statements as per prescribed format", "Ensure board approval"]
+        },
+        "companies_act_liquidity": {
+            "type": "ratio_check",
+            "description": "Minimum liquidity requirements",
+            "ratio": "current_ratio",
+            "min_value": 0.75,
+            "severity": "high",
+            "reference": "Companies Act 2013 - Section 186",
+            "remediation": ["Improve liquidity position", "Review working capital management"]
+        },
+        "companies_act_trends": {
+            "type": "trend_check",
+            "description": "Material adverse changes disclosure",
+            "severity": "medium",
+            "reference": "Companies Act 2013 - Section 134",
+            "remediation": ["Disclose material changes in annual report", "Provide management commentary"]
+        }
+    },
+    "rbi": {
+        "rbi_capital_adequacy": {
+            "type": "ratio_check",
+            "description": "Capital adequacy requirements",
+            "ratio": "debt_to_equity",
+            "max_value": 1.5,
+            "severity": "critical",
+            "reference": "RBI Master Circular on Capital Adequacy",
+            "remediation": ["Increase capital base", "Reduce risk-weighted assets"]
+        }
+    }
+}

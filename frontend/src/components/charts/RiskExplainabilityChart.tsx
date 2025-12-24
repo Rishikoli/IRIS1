@@ -54,8 +54,8 @@ export default function RiskExplainabilityChart({ shapValues }: ExplainabilityPr
     return (
         <div className="w-full h-[300px] mt-4">
             <div className="mb-2 text-center">
-                <h4 className="text-sm font-semibold text-slate-300">Why is the score {shapValues.base_value ? Math.round(data.reduce((acc, curr) => acc + curr.impact, shapValues.base_value)) : 'calculated'}?</h4>
-                <p className="text-xs text-slate-500">Deviation from Neutral Baseline ({shapValues.base_value || 50})</p>
+                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Why is the score {shapValues.base_value ? Math.round(data.reduce((acc, curr) => acc + curr.impact, shapValues.base_value)) : 'calculated'}?</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Deviation from Neutral Baseline ({shapValues.base_value || 50})</p>
             </div>
 
             <ResponsiveContainer width="100%" height="100%">
@@ -64,28 +64,27 @@ export default function RiskExplainabilityChart({ shapValues }: ExplainabilityPr
                     data={data}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                 >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#334155" />
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                     <XAxis
                         type="number"
                         domain={['dataMin - 5', 'dataMax + 5']}
-                        stroke="#94a3b8"
-                        tick={{ fill: '#94a3b8', fontSize: 10 }}
+                        stroke="#64748b"
+                        tick={{ fill: '#64748b', fontSize: 10 }}
                     />
                     <YAxis
                         dataKey="factor"
                         type="category"
                         width={120}
-                        stroke="#94a3b8"
-                        tick={{ fill: '#e2e8f0', fontSize: 11 }}
+                        stroke="#64748b"
+                        tick={{ fill: '#475569', fontSize: 11 }}
                     />
-                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }} />
-                    <ReferenceLine x={0} stroke="#64748b" />
-                    <Bar dataKey="impact" name="Risk Impact">
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }} />
+                    <ReferenceLine x={0} stroke="#94a3b8" />
+                    <Bar dataKey="impact" name="Risk Impact" radius={[0, 4, 4, 0]}>
                         {data.map((entry, index) => (
                             <Cell
                                 key={`cell-${index}`}
                                 fill={entry.impact > 0 ? '#ef4444' : '#22c55e'}
-                                radius={[0, 4, 4, 0]}
                             />
                         ))}
                     </Bar>

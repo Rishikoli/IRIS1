@@ -9,276 +9,315 @@ interface MScoreChartProps {
 
 export default function MScoreChart({ data }: MScoreChartProps) {
   const chartRef = useRef<SVGSVGElement>(null);
+  const trendRef = useRef<SVGSVGElement>(null);
+
+  // Safely extract data handling potential structure variations
+  // Backend returns: results["beneish_m_score"]["beneish_m_score"]["m_score"]
+  // So 'data' passed here is usually 'analysisData.beneish_m_score' 
+  // which might be the wrapper or the inner object depending on how it's passed.
+  // We'll normalize it.
+
+  const mData = data?.beneish_m_score || data || {};
+  const mScore = typeof mData.m_score === 'number' ? mData.m_score : parseFloat(mData.m_score || 0);
+  const variables = mData.variables || {};
+  const history = mData.historical_m_scores || [];
 
   useEffect(() => {
-    if (!data || !chartRef.current) return;
+    if (chartRef.current) {
+      drawGaugeChart();
+    }
+  }, [data, mScore]);
 
-    drawChart();
-  }, [data]);
+  useEffect(() => {
+    if (trendRef.current && history.length > 1) {
+      drawTrendChart();
+    }
+  }, [history]);
 
-  const drawChart = () => {
-    if (!data || !chartRef.current) return;
-
-    // Clear previous chart
+  const drawGaugeChart = () => {
+    if (!chartRef.current) return;
     d3.select(chartRef.current).selectAll("*").remove();
 
-    const margin = { top: 40, right: 150, bottom: 60, left: 80 };
-    const width = 600 - margin.left - margin.right;
-    const height = 350 - margin.top - margin.bottom;
+    const margin = { top: 40, right: 40, bottom: 60, left: 40 };
+    // Increased size to match ZScoreChart aesthetics
+    const width = 800 - margin.left - margin.right;
+    const height = 180 - margin.top - margin.bottom;
 
     const svg = d3.select(chartRef.current)
       .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
-      .attr("preserveAspectRatio", "xMidYMid meet")
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
-    const mScore = parseFloat(data.m_score) || 0;
+    // Define Zones
+    // Risk Thresholds: > -1.78 is Manipulator, < -2.22 is Conservative (Safe)
+    // We visualize from -6 (Safe) to +2 (High Risk)
+    const xScale = d3.scaleLinear()
+      .domain([-6, 2])
+      .range([0, width]);
 
-    // M-Score risk zones (Beneish M-Score)
+    // Zones
     const zones = [
-      { range: [-10, -2.22], label: 'Likely Manipulator', color: '#ef4444', description: 'High manipulation risk' },
-      { range: [-2.22, -1.78], label: 'Conservative', color: '#4ade80', description: 'Low manipulation risk' },
-      { range: [-1.78, 10], label: 'Aggressive', color: '#f59e0b', description: 'Moderate manipulation risk' }
+      { min: -6, max: -2.22, color: "#10B981", label: "Conservative Check" }, // Green
+      { min: -2.22, max: -1.78, color: "#F59E0B", label: "Grey Zone" },       // Yellow
+      { min: -1.78, max: 2, color: "#EF4444", label: "Likely Manipulator" }   // Red
     ];
 
-    // Scale for Y-axis (M-Score values)
-    const yScale = d3.scaleLinear()
-      .domain([-5, 5]) // Extended range for better visualization
-      .range([height, 0]);
+    // Bars
+    // Note: Inverted logic compared to Z-Score? 
+    // M-Score: Lower is Better (More negative). Higher (positive/less negative) is bad.
 
-    // Draw zone backgrounds
-    zones.forEach((zone, index) => {
-      const yStart = yScale(zone.range[0]);
-      const yEnd = yScale(zone.range[1]);
-
-      svg.append("rect")
-        .attr("x", 0)
-        .attr("y", Math.min(yStart, yEnd))
-        .attr("width", width)
-        .attr("height", Math.abs(yEnd - yStart))
-        .attr("fill", zone.color)
-        .attr("opacity", 0.1);
-
-      // Add zone labels
-      svg.append("text")
-        .attr("x", width + 10)
-        .attr("y", (yStart + yEnd) / 2)
-        .attr("text-anchor", "start")
-        .style("font-size", "12px")
-        .style("fill", zone.color)
-        .style("font-weight", "bold")
-        .text(zone.label);
-
-      svg.append("text")
-        .attr("x", width + 10)
-        .attr("y", (yStart + yEnd) / 2 + 15)
-        .attr("text-anchor", "start")
-        .style("font-size", "10px")
-        .style("fill", "#64748b")
-        .text(zone.description);
-    });
-
-
-
-    // Draw Y-axis
-    svg.append("g")
-      .call(d3.axisLeft(yScale).ticks(6))
-      .selectAll("text")
-      .style("font-size", "12px");
-
-    // Draw horizontal grid lines
-    svg.selectAll(".grid-line")
-      .data([-2.22, -1.78])
+    svg.selectAll("rect.zone")
+      .data(zones)
       .enter()
-      .append("line")
-      .attr("class", "grid-line")
-      .attr("x1", 0)
-      .attr("x2", width)
-      .attr("y1", d => yScale(d))
-      .attr("y2", d => yScale(d))
-      .style("stroke", "#64748b")
-      .style("stroke-width", 1)
-      .style("stroke-dasharray", "3,3");
+      .append("rect")
+      .attr("x", d => xScale(d.min))
+      .attr("y", 0)
+      .attr("width", d => xScale(d.max) - xScale(d.min))
+      .attr("height", height)
+      .attr("fill", d => d.color)
+      .attr("rx", 4)
+      .attr("opacity", 0.2);
 
-    // Draw current M-Score line
-    const scoreY = yScale(mScore);
-
-    svg.append("line")
-      .attr("x1", 0)
-      .attr("x2", width)
-      .attr("y1", scoreY)
-      .attr("y2", scoreY)
-      .style("stroke", "#FF6B9D")
-      .style("stroke-width", 3)
-      .style("stroke-dasharray", "none");
-
-    // Add score indicator circle
-    svg.append("circle")
-      .attr("cx", width / 2)
-      .attr("cy", scoreY)
-      .attr("r", 8)
-      .attr("fill", "#FF6B9D")
-      .style("filter", "drop-shadow(0 0 5px rgba(255, 107, 157, 0.5))");
-
-    // Add score value label
-    svg.append("text")
-      .attr("x", width / 2)
-      .attr("y", scoreY - 15)
-      .attr("text-anchor", "middle")
-      .style("font-size", "14px")
-      .style("font-weight", "bold")
-      .style("fill", "#FF6B9D")
-      .text(mScore.toFixed(2));
-
-    // Add manipulation probability label
-    const manipulationRisk = mScore > -1.78 ? 'HIGH' : 'LOW';
-    svg.append("text")
-      .attr("x", width / 2)
-      .attr("y", scoreY + 20)
+    // Zone Labels
+    svg.selectAll("text.label")
+      .data(zones)
+      .enter()
+      .append("text")
+      .attr("x", d => xScale(d.min) + (xScale(d.max) - xScale(d.min)) / 2)
+      .attr("y", -10)
       .attr("text-anchor", "middle")
       .style("font-size", "12px")
       .style("font-weight", "bold")
-      .style("fill", mScore > -1.78 ? '#ef4444' : '#4ade80')
-      .text(`${manipulationRisk} RISK`);
+      .style("fill", d => d.color)
+      .text(d => d.label);
 
-    // Add chart title
+    // Current Score Marker
+    // Clamped score for visual purposes
+    const clampedScore = Math.max(-6, Math.min(2, mScore));
+    const xPos = xScale(clampedScore);
+
+    // Line
+    svg.append("line")
+      .attr("x1", xPos)
+      .attr("x2", xPos)
+      .attr("y1", -5)
+      .attr("y2", height + 5)
+      .style("stroke", "#1E293B")
+      .style("stroke-width", 3);
+
+    // Circle
+    svg.append("circle")
+      .attr("cx", xPos)
+      .attr("cy", height / 2)
+      .attr("r", 8)
+      .style("fill", "#1E293B")
+      .style("stroke", "#fff")
+      .style("stroke-width", 2);
+
+    // Score Text
     svg.append("text")
-      .attr("x", width / 2)
-      .attr("y", -20)
+      .attr("x", xPos)
+      .attr("y", height + 30)
       .attr("text-anchor", "middle")
       .style("font-size", "16px")
       .style("font-weight", "bold")
-      .style("fill", "#1e293b")
-      .text("Beneish M-Score Analysis");
+      .style("fill", "#1E293B")
+      .text(`Score: ${mScore.toFixed(2)}`);
 
-    // Add axis label
-    svg.append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", -40)
-      .attr("x", -height / 2)
-      .attr("text-anchor", "middle")
-      .style("font-size", "14px")
-      .style("fill", "#64748b")
-      .text("M-Score Value");
   };
 
-  const mScore = parseFloat(data.m_score) || 0;
-  const manipulationProbability = mScore > -1.78 ? 'High' : 'Low';
-  const riskColor = mScore > -1.78 ? '#ef4444' : '#4ade80';
+  const drawTrendChart = () => {
+    if (!trendRef.current || history.length < 2) return;
+    d3.select(trendRef.current).selectAll("*").remove();
+
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const width = 500 - margin.left - margin.right;
+    const height = 250 - margin.top - margin.bottom;
+
+    const svg = d3.select(trendRef.current)
+      .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Parse dates
+    const parseTime = d3.timeParse("%Y-%m-%d");
+    const trendData = history.map((d: any) => ({
+      date: parseTime(d.period) || new Date(d.period),
+      value: Number(d.m_score)
+    }));
+
+    // X Scale
+    const x = d3.scaleTime()
+      .domain(d3.extent(trendData, (d: any) => d.date) as [Date, Date])
+      .range([0, width]);
+
+    // Y Scale
+    const y = d3.scaleLinear()
+      .domain([
+        Math.min(-4, d3.min(trendData, (d: any) => d.value) as number),
+        Math.max(0, d3.max(trendData, (d: any) => d.value) as number)
+      ])
+      .range([height, 0]);
+
+    // Grid lines
+    svg.append("g")
+      .attr("class", "grid")
+      .attr("opacity", 0.1)
+      .call(d3.axisLeft(y).tickSize(-width).tickFormat(() => ""));
+
+    // Axes
+    svg.append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x).ticks(5))
+      .style("font-size", "11px");
+
+    svg.append("g")
+      .call(d3.axisLeft(y))
+      .style("font-size", "11px");
+
+    // Threshold Line (-1.78)
+    const thresholdY = y(-1.78);
+    if (thresholdY >= 0 && thresholdY <= height) {
+      svg.append("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", thresholdY)
+        .attr("y2", thresholdY)
+        .attr("stroke", "#EF4444")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "4,4");
+
+      svg.append("text")
+        .attr("x", width - 5)
+        .attr("y", thresholdY - 5)
+        .attr("text-anchor", "end")
+        .style("font-size", "10px")
+        .style("fill", "#EF4444")
+        .text("Manipulation Threshold (-1.78)");
+    }
+
+    // Line
+    const line = d3.line<any>()
+      .x(d => x(d.date))
+      .y(d => y(d.value))
+      .curve(d3.curveMonotoneX);
+
+    svg.append("path")
+      .datum(trendData)
+      .attr("fill", "none")
+      .attr("stroke", "#6366f1")
+      .attr("stroke-width", 2)
+      .attr("d", line);
+
+    // Dots
+    svg.selectAll(".dot")
+      .data(trendData)
+      .enter()
+      .append("circle")
+      .attr("cx", (d: any) => x(d.date))
+      .attr("cy", (d: any) => y(d.value))
+      .attr("r", 4)
+      .attr("fill", "#fff")
+      .attr("stroke", "#6366f1")
+      .attr("stroke-width", 2);
+  };
+
+  const riskColor = mScore > -1.78 ? '#EF4444' : '#10B981';
+  const riskLabel = mScore > -1.78 ? 'HIGH RISK' : 'LOW RISK';
+  const riskDesc = mScore > -1.78 ? 'Potential Earnings Manipulation' : 'Conservative Accounting';
+
+  // Variable definitions for tooltip/labels
+  const variableDefinitions: any = {
+    DSRI: "Days Sales in Receivables Index",
+    GMI: "Gross Margin Index",
+    AQI: "Asset Quality Index",
+    SGI: "Sales Growth Index",
+    DEPI: "Depreciation Index",
+    SGAI: "SG&A Index",
+    LVGI: "Leverage Index",
+    TATA: "Total Accruals to Total Assets"
+  };
 
   return (
-    <div className="w-full">
-      <div className="mb-6">
-        <h3 className="text-xl font-bold mb-2" style={{ color: '#1e293b' }}>Beneish M-Score</h3>
-        <p className="text-sm" style={{ color: '#64748b' }}>
-          Earnings manipulation detection using Beneish M-Score model
-        </p>
+    <div className="w-full space-y-8">
+
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex-1">
+          <h3 className="text-2xl font-bold text-slate-800">Beneish M-Score Analysis</h3>
+          <p className="text-slate-500">
+            Forensic model identifying potential earnings manipulation through 8 financial ratios.
+          </p>
+        </div>
+        <div className={`px-6 py-3 rounded-2xl border-2 flex flex-col items-center min-w-[180px]`}
+          style={{ borderColor: riskColor, backgroundColor: `${riskColor}10` }}>
+          <span className="text-3xl font-bold" style={{ color: riskColor }}>{mScore.toFixed(2)}</span>
+          <span className="text-sm font-bold tracking-wider" style={{ color: riskColor }}>{riskLabel}</span>
+        </div>
       </div>
 
-      <div className="neumorphic-card rounded-2xl p-6" style={{
-        background: 'rgba(255, 255, 255, 0.9)',
-        boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)'
-      }}>
-        <svg ref={chartRef} className="w-full h-auto"></svg>
+      {/* Main Gauge Chart */}
+      <div className="neumorphic-card rounded-3xl p-6 bg-white/50">
+        <svg ref={chartRef} className="w-full h-auto max-h-[220px]"></svg>
+        <div className="text-center mt-2 text-slate-600 italic text-sm">
+          Interpretation: {riskDesc}
+        </div>
       </div>
 
-      {/* M-Score Details */}
-      <div className="mt-6 neumorphic-card rounded-2xl p-6" style={{
-        background: 'rgba(255, 255, 255, 0.9)',
-        boxShadow: '12px 12px 24px rgba(0,0,0,0.1), -12px -12px 24px rgba(255,255,255,0.9)'
-      }}>
-        <h4 className="text-lg font-semibold mb-4" style={{ color: '#1e293b' }}>M-Score Analysis Details</h4>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-4 rounded-xl" style={{
-            background: `rgba(${riskColor.includes('#ef4444') ? '239, 68, 68' : '74, 222, 128'}, 0.1)`,
-            border: `2px solid ${riskColor}30`
-          }}>
-            <div className="text-2xl font-bold" style={{ color: riskColor }}>{mScore.toFixed(2)}</div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>M-Score</div>
-          </div>
-
-          <div className="text-center p-4 rounded-xl" style={{
-            background: `rgba(${riskColor.includes('#ef4444') ? '239, 68, 68' : '74, 222, 128'}, 0.1)`,
-            border: `2px solid ${riskColor}30`
-          }}>
-            <div className="text-lg font-bold" style={{ color: riskColor }}>{manipulationProbability} RISK</div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>Manipulation Risk</div>
-          </div>
-
-          <div className="text-center p-4 rounded-xl" style={{
-            background: `rgba(${riskColor.includes('#ef4444') ? '239, 68, 68' : '74, 222, 128'}, 0.1)`,
-            border: `2px solid ${riskColor}30`
-          }}>
-            <div className="text-sm font-bold" style={{ color: riskColor }}>
-              {mScore > -1.78 ? 'Likely earnings manipulation' : 'Conservative accounting practices'}
-            </div>
-            <div className="text-sm font-medium" style={{ color: '#64748b' }}>Interpretation</div>
+        {/* Component Breakdown Table */}
+        <div className="neumorphic-card rounded-2xl p-6">
+          <h4 className="text-lg font-bold text-slate-700 mb-4">8-Variable Breakdown</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-medium">
+                <tr>
+                  <th className="p-3 rounded-l-lg">Metric</th>
+                  <th className="p-3">Full Name</th>
+                  <th className="p-3 text-right">Value</th>
+                  <th className="p-3 text-right rounded-r-lg">Normal Range</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {Object.entries(variables).map(([key, rawVal]: [string, any]) => {
+                  const val = Number(rawVal);
+                  // Rough "safe" thresholds for visual coloring (simplified)
+                  const isHigh = val > 1.2;
+                  return (
+                    <tr key={key} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="p-3 font-semibold text-slate-700">{key}</td>
+                      <td className="p-3 text-slate-500">{variableDefinitions[key] || key}</td>
+                      <td className={`p-3 text-right font-mono font-bold ${isHigh ? 'text-amber-500' : 'text-slate-700'}`}>
+                        {val.toFixed(3)}
+                      </td>
+                      <td className="p-3 text-right text-xs text-slate-400">~1.0</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Score Indicators */}
-        <div className="space-y-3">
-          <h5 className="font-semibold" style={{ color: '#1e293b' }}>M-Score Indicators</h5>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(data.indicators || {}).slice(0, 6).map(([indicator, value]: [string, any]) => (
-              <div key={indicator} className="flex items-center justify-between p-3 rounded-xl" style={{
-                background: 'rgba(255, 255, 255, 0.7)',
-                boxShadow: 'inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.9)'
-              }}>
-                <span className="font-medium" style={{ color: '#64748b' }}>
-                  {indicator.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:
-                </span>
-                <span className={`font-bold ${parseFloat(value) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {parseFloat(value).toFixed(3)}
-                </span>
+        {/* Historical Trend */}
+        <div className="neumorphic-card rounded-2xl p-6 flex flex-col">
+          <h4 className="text-lg font-bold text-slate-700 mb-4">Historical Trend</h4>
+          <div className="flex-1 flex items-center justify-center min-h-[250px]">
+            {history.length > 1 ? (
+              <svg ref={trendRef} className="w-full h-full"></svg>
+            ) : (
+              <div className="text-slate-400 text-center">
+                <span className="text-4xl block mb-2">📉</span>
+                Insufficient data for trend analysis<br />
+                (Need at least 2 comparison periods)
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Risk Zone Explanations */}
-        <div className="mt-6 space-y-3">
-          <h5 className="font-semibold" style={{ color: '#1e293b' }}>Risk Interpretation Guide</h5>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3 rounded-xl" style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '2px solid rgba(239, 68, 68, 0.3)'
-            }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="font-semibold text-red-700">Likely Manipulator</span>
-              </div>
-              <p className="text-xs" style={{ color: '#64748b' }}>M-Score &gt; -1.78</p>
-              <p className="text-xs mt-1" style={{ color: '#64748b' }}>High probability of earnings manipulation</p>
-            </div>
-
-            <div className="p-3 rounded-xl" style={{
-              background: 'rgba(74, 222, 128, 0.1)',
-              border: '2px solid rgba(74, 222, 128, 0.3)'
-            }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="font-semibold text-green-700">Conservative</span>
-              </div>
-              <p className="text-xs" style={{ color: '#64748b' }}>M-Score &lt; -2.22</p>
-              <p className="text-xs mt-1" style={{ color: '#64748b' }}>Low probability of manipulation</p>
-            </div>
-
-            <div className="p-3 rounded-xl" style={{
-              background: 'rgba(245, 158, 11, 0.1)',
-              border: '2px solid rgba(245, 158, 11, 0.3)'
-            }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <span className="font-semibold text-yellow-700">Aggressive</span>
-              </div>
-              <p className="text-xs" style={{ color: '#64748b' }}>M-Score -2.22 to -1.78</p>
-              <p className="text-xs mt-1" style={{ color: '#64748b' }}>Moderate manipulation risk</p>
-            </div>
-          </div>
-        </div>
       </div>
+
     </div>
   );
 }

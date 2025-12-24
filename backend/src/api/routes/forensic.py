@@ -374,7 +374,16 @@ async def run_forensic_analysis_api(company_symbol: str):
             )
 
         # Run comprehensive forensic analysis with real data
-        analysis_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+        try:
+            analysis_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+        except Exception as agent_error:
+            logger.error(f"Agent 2 (Forensic) crashed for {company_symbol}: {agent_error}")
+            return {
+                "success": False,
+                "company_id": company_symbol,
+                "error": f"Forensic Analysis Agent Failed: {str(agent_error)}",
+                "analysis_timestamp": datetime.utcnow().isoformat()
+            }
 
         if not analysis_result['success']:
             return {
@@ -588,29 +597,7 @@ async def validate_compliance_api(company_symbol: str):
         return {
             "success": True,
             "company_id": company_symbol,
-            "compliance_assessment": {
-                "overall_compliance_score": compliance_assessment.overall_compliance_score,
-                "compliance_status": compliance_assessment.compliance_status,
-                "framework_scores": {
-                    framework.value: score
-                    for framework, score in compliance_assessment.framework_scores.items()
-                },
-                "violations": [
-                    {
-                        "framework": violation.framework.value,
-                        "rule_id": violation.rule_id,
-                        "severity": violation.severity.value,
-                        "description": violation.violation_description,
-                        "evidence": violation.evidence,
-                        "remediation": violation.remediation_steps,
-                        "reference": violation.regulatory_reference
-                    }
-                    for violation in compliance_assessment.violations
-                ],
-                "recommendations": compliance_assessment.recommendations,
-                "next_review_date": compliance_assessment.next_review_date,
-                "analysis_timestamp": datetime.utcnow().isoformat()
-            }
+            "compliance_assessment": compliance_agent.generate_compliance_report(compliance_assessment, forensic_result)
         }
 
     except Exception as e:
@@ -827,85 +814,49 @@ async def realtime_forensic_analysis(company_symbol: str):
 @forensic_router.get("/network/{company_symbol}")
 async def get_rpt_network(company_symbol: str):
     """
-    Get RPT Network Graph, Geo-Spatial Data, and Predictive Forensics.
-    Aggregates data from Agent 9, 11, 12, and 13.
+    Get Related Party Transaction Network Graph.
+    UPGRADE: Uses Agent 2.5 (Shell Hunter) to detect circular trading cycles.
     """
     try:
-        # 1. Build Network (Agent 9 + 11 + 12)
-        result = await network_agent.build_rpt_network(company_symbol)
+        logger.info(f"Generating Shell Hunter Network for {company_symbol}")
         
-        if not result['success']:
-            raise HTTPException(status_code=500, detail=result.get('error'))
-            
-        # 2. Add Predictive Forensics (Agent 13)
-        # Agent 13 needs historical financial data to make predictions.
-        # We can extract this from the financial_ratios if available, or fetch it.
-        # For now, we'll try to get it from the analysis result if Agent 9 included it,
-        # or we might need to fetch it separately.
+        # Use Agent 2.5 (Shell Hunter)
+        from src.agents.forensic.agent_shell_hunter import ShellHunterAgent
+        shell_agent = ShellHunterAgent()
         
-        # Extracting from financial_ratios if possible
-        ratios_data = result.get("financial_ratios", {}).get("financial_ratios", {})
-        
-        historical_financials = {
-            "revenue": [],
-            "net_income": []
+        # Run algorithmic detection
+        result = shell_agent.analyze_network(company_symbol)
+
+        return {
+            "success": True,
+            "company_id": company_symbol,
+            "graph_data": {
+                "nodes": result["graph_data"]["nodes"],
+                "edges": result["graph_data"]["edges"]
+            },
+            "risk_score": result["risk_score"],
+            "cycles": result["detected_cycles"],
+            "detected_cycles": result["detected_cycles"],
+            "hidden_directors": result["hidden_directors"],
+            "analysis_timestamp": datetime.utcnow().isoformat()
         }
-        
-        # SAFEGUARD: If no financials, Agent 13 handles it safely.
-        try:
-            predictions = time_traveler.predict_future_performance(historical_financials)
-            result["predictive_forensics"] = predictions
-        except Exception as e:
-            logger.error(f"Agent 13 failed: {e}")
-            result["predictive_forensics"] = {}
 
-        return result
-
-
-        
     except Exception as e:
         logger.error(f"Error generating network for {company_symbol}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-        progress_steps = [
-            {"progress": 10, "step": "Initializing analysis..."},
-            {"progress": 25, "step": "Ingesting financial data..."},
-            {"progress": 40, "step": "Performing vertical analysis..."},
-            {"progress": 55, "step": "Performing horizontal analysis..."},
-            {"progress": 70, "step": "Calculating financial ratios..."},
-            {"progress": 85, "step": "Running Benford's Law analysis..."},
-            {"progress": 95, "step": "Detecting anomalies..."},
-            {"progress": 100, "step": "Analysis completed successfully!"}
-        ]
-
-        # Simulate progress updates
-        for step in progress_steps[:-1]:  # All except the last one
-            await asyncio.sleep(0.1)  # Small delay for realism
-
-        # Get the final real analysis result
-        analysis_result = await run_forensic_analysis_api(company_symbol)
-
-        if analysis_result.get('success'):
-            # Return final result with progress indicator
-            return {
-                "progress": 100,
-                "current_step": "Analysis completed successfully!",
-                **analysis_result
-            }
-        else:
-            return {
-                "progress": 0,
-                "current_step": "Analysis failed",
-                **analysis_result
-            }
-
-    except Exception as e:
-        logger.error(f"Error in real-time analysis for {company_symbol}: {e}")
+        # Return a safe empty response
         return {
-            "progress": 0,
-            "current_step": f"Error: {str(e)}",
-            "success": False,
-            "error": str(e)
+             "success": False,
+             "error": str(e),
+             "graph_data": {
+                 "nodes": [],
+                 "edges": []
+             },
+             "cycles": []
         }
+
+
+        
+
 
 async def store_analysis_results(company_id: str, analysis_result: Dict[str, Any]):
     """Background task to store analysis results in database"""
@@ -1005,7 +956,12 @@ async def analyze_yahoo_finance_data(symbol: str, background_tasks: BackgroundTa
             response_data['financial_ratios'] = analysis_result['financial_ratios']
 
         if 'vertical_analysis' in analysis_result:
-            response_data['vertical_analysis'] = analysis_result['vertical_analysis']
+            # Flatten the structure if needed (Agent 2 returns it wrapped)
+            va_result = analysis_result['vertical_analysis']
+            if isinstance(va_result, dict) and 'vertical_analysis' in va_result:
+                response_data['vertical_analysis'] = va_result['vertical_analysis']
+            else:
+                response_data['vertical_analysis'] = va_result
 
         if 'horizontal_analysis' in analysis_result:
             response_data['horizontal_analysis'] = analysis_result['horizontal_analysis']

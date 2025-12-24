@@ -1,4 +1,4 @@
- import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
 interface AnomalyHeatmapProps {
@@ -24,7 +24,7 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
     d3.select(chartRef.current).selectAll('*').remove();
 
     const svg = d3.select(chartRef.current);
-    const margin = { top: 60, right: 40, bottom: 80, left: 100 };
+    const margin = { top: 60, right: 40, bottom: 140, left: 150 };
     const width = 600 - margin.left - margin.right;
     const height = 400 - margin.top - margin.bottom;
 
@@ -39,7 +39,7 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
 
     // Create matrix data structure
     const categories = ['Q1', 'Q2', 'Q3', 'Q4', 'YTD'];
-    const matrixData: Array<{x: string, y: string, value: number, severity: string}> = [];
+    const matrixData: Array<{ x: string, y: string, value: number, severity: string }> = [];
 
     // Generate sample data if not provided
     dimensions.forEach(dimension => {
@@ -96,9 +96,9 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
       .attr('stroke-width', 2)
       .attr('rx', 4)
       .style('opacity', 0.8)
-      .on('mouseover', function(event, d) {
+      .on('mouseover', function (event, d) {
         d3.select(this).style('opacity', 1);
-        
+
         // Create tooltip
         const tooltip = d3.select('body').append('div')
           .attr('class', 'tooltip')
@@ -123,24 +123,12 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
           .style('left', (event.pageX + 10) + 'px')
           .style('top', (event.pageY - 10) + 'px');
       })
-      .on('mouseout', function() {
+      .on('mouseout', function () {
         d3.select(this).style('opacity', 0.8);
         d3.selectAll('.tooltip').remove();
       });
 
-    // Add cell values
-    g.selectAll('.cell-text')
-      .data(matrixData)
-      .enter().append('text')
-      .attr('class', 'cell-text')
-      .attr('x', d => (xScale(d.x) || 0) + xScale.bandwidth() / 2)
-      .attr('y', d => (yScale(d.y) || 0) + yScale.bandwidth() / 2)
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'middle')
-      .attr('fill', 'white')
-      .attr('font-size', '12px')
-      .attr('font-weight', '600')
-      .text(d => d.value);
+
 
     // Add x-axis
     g.append('g')
@@ -162,7 +150,7 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
     // Add x-axis label
     g.append('text')
       .attr('x', width / 2)
-      .attr('y', height + 50)
+      .attr('y', height + 40)
       .attr('text-anchor', 'middle')
       .attr('fill', '#64748b')
       .attr('font-size', '12px')
@@ -173,7 +161,7 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
     g.append('text')
       .attr('transform', 'rotate(-90)')
       .attr('x', -height / 2)
-      .attr('y', -60)
+      .attr('y', -110)
       .attr('text-anchor', 'middle')
       .attr('fill', '#64748b')
       .attr('font-size', '12px')
@@ -190,9 +178,9 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
       .attr('fill', '#1e293b')
       .text('Anomaly Detection Heatmap');
 
-    // Add legend
+    // Add legend (Moved to Bottom to prevent overlap)
     const legend = svg.append('g')
-      .attr('transform', `translate(${width + margin.left - 80}, ${margin.top})`);
+      .attr('transform', `translate(${margin.left}, ${height + margin.top + 80})`); // Position below chart
 
     const legendData = [
       { severity: 'low', label: 'Low Risk', color: '#22c55e' },
@@ -204,10 +192,10 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
       .data(legendData)
       .enter().append('g')
       .attr('class', 'legend-item')
-      .attr('transform', (d, i) => `translate(0, ${i * 25})`)
-      .each(function(d) {
+      .attr('transform', (d, i) => `translate(${i * 100}, 0)`) // Horizontal layout
+      .each(function (d) {
         const item = d3.select(this);
-        
+
         item.append('rect')
           .attr('width', 15)
           .attr('height', 15)
@@ -221,6 +209,24 @@ export default function AnomalyHeatmap({ data, dimensions, companyName = 'Compan
           .attr('font-size', '11px')
           .attr('font-weight', '500')
           .text(d.label);
+      });
+
+    // Add cell values (Normalized)
+    g.selectAll('.cell-text')
+      .data(matrixData)
+      .enter().append('text')
+      .attr('class', 'cell-text')
+      .attr('x', d => (xScale(d.x) || 0) + xScale.bandwidth() / 2)
+      .attr('y', d => (yScale(d.y) || 0) + yScale.bandwidth() / 2)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('fill', 'white')
+      .attr('font-size', '12px')
+      .attr('font-weight', '600')
+      .text(d => {
+        // Normalize: if < 1, assume ratio (0.8 -> 80), else assume percentage (92 -> 92)
+        const val = d.value <= 1 ? d.value * 100 : d.value;
+        return val.toFixed(0);
       });
 
   }, [data, dimensions, companyName]);

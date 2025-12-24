@@ -32,20 +32,25 @@ class AuditorAgent:
                 return
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
             logger.info("Gemini model initialized for Auditor Agent")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
 
-    def analyze_annual_report(self, company_symbol: str) -> Dict[str, Any]:
+    def analyze_annual_report(self, company_symbol: str, pdf_url: Optional[str] = None) -> Dict[str, Any]:
         """
         Orchestrates the process: Search -> Download -> Analyze
+        If pdf_url is provided, skips search.
         """
         try:
             company_name = company_symbol.split('.')[0] # Simple cleanup
             
-            # 1. Search for PDF
-            pdf_url = self._search_annual_report_url(company_name)
+            # 1. Determine PDF URL
+            if not pdf_url:
+                pdf_url = self._search_annual_report_url(company_name)
+            else:
+                logger.info(f"Using provided PDF URL: {pdf_url}")
+
             if not pdf_url:
                 return {"status": "error", "message": "Annual Report PDF not found"}
             
