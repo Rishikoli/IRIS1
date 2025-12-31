@@ -21,9 +21,7 @@ google-generativeai==0.4.0     # compatible with latest API
 sentence-transformers==3.2.1   # supports PyTorch 2.5+
 transformers==4.44.2           # latest stable Oct 2025
 torch==2.5.1
-intel-extension-for-pytorch==2.6.0
-openvino==2024.3.0
-openvino-dev==2024.3.0
+
 
 # ─────────────────────────────────────────────
 # Task Queue
