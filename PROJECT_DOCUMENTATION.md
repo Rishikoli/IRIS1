@@ -15,7 +15,7 @@ IRIS (also referred to as Nexus Ray) is an advanced AI-powered forensic and risk
 - **Event Streaming**: Apache Kafka (via `confluent-kafka`)
 - **AI & ML**:
     - **LLMs**: Google Generative AI (Gemini 2.0 Flash Exp), Hugging Face Transformers
-    - **Inference**: OpenVINO, PyTorch
+    - **Inference**: PyTorch
     - **Embeddings**: Sentence Transformers
 - **Financial Data**: `yfinance`, `pytrends`
 - **Utility**: `pydantic` for validation, `sqlalchemy` for ORM.
@@ -33,7 +33,20 @@ IRIS (also referred to as Nexus Ray) is an advanced AI-powered forensic and risk
 
 The system operates on a **micro-agent architecture**, where specialized agents perform distinct tasks:
 
-- **Forensic Agents (`backend/src/agents/forensic`)**: Analyze financial reports and detect anomalies.
+- **Forensic Agents (`backend/src/agents/forensic`)**:
+    - **Agent 1 (Ingestion)**: Handles data ingestion from various sources.
+    - **Agent 2 (Forensic Analysis)**: Core analysis engine for financial reports.
+    - **Agent 2.5 (Shell Hunter)**: Specialized in detecting circular ownership, money laundering loops, and interlocking directorates.
+    - **Agent 3 (Risk Scoring)**: Calculates comprehensive risk scores based on multiple factors.
+    - **Agent 4 (Compliance)**: Checks adherence to regulatory measures and compliance standards.
+    - **Agent 5 (Reporting)**: Aggregates findings into structured reports.
+    - **Agent 6 (Orchestrator)**: Coordinates communication and task flow between agents.
+    - **Agent 9 (Network Analysis)**: Builds RPT networks and detects suspicious cycles.
+    - **Agent 10 (Auditor)**: Analyzes annual reports and financial statements.
+    - **Agent 11 (Exchange)**: Fetches official shareholding patterns.
+    - **Agent 11 (Report Generator)**: Generates PDF forensic investigation reports.
+    - **Agent 12 (Cartographer)**: Provides geo-spatial intelligence and tax haven detection.
+    - **Agent 13 (Time Traveler)**: Performs predictive forensics and future performance analysis.
 - **QA RAG Agent (`backend/src/agents/agent7_qa_rag.py`)**: Answer questions based on retrieved documents.
 - **Market Sentiment Agent (`backend/src/agents/agent8_market_sentiment.py`)**: Analyze market trends and news.
 - **Orchestration**: Agents communicate and coordinate via Kafka topics and Celery tasks.
