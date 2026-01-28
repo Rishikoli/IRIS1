@@ -93,3 +93,4 @@ isort==5.13.2
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+Faker

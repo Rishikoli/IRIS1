@@ -1,13 +1,42 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { FiTrendingUp, FiTrendingDown, FiMinus, FiExternalLink } from 'react-icons/fi';
 
 interface SentimentSectionProps {
     sentimentData: any;
     isLoading?: boolean;
+    companySymbol?: string;
 }
 
-export default function SentimentSection({ sentimentData, isLoading = false }: SentimentSectionProps) {
+export default function SentimentSection({ sentimentData, isLoading = false, companySymbol = 'Reliance' }: SentimentSectionProps) {
+    const [monitoringData, setMonitoringData] = useState<any>(null);
+    const [monitoringLoading, setMonitoringLoading] = useState(false);
+
+    // Fetch real-time monitoring sentiment data
+    useEffect(() => {
+        const fetchMonitoringSentiment = async () => {
+            if (!companySymbol) return;
+
+            setMonitoringLoading(true);
+            try {
+                const response = await fetch(`/api/v1/sentiment/company/${companySymbol}?hours=24`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setMonitoringData(data);
+                } else {
+                    setMonitoringData(null);
+                }
+            } catch (error) {
+                console.error('Failed to fetch monitoring sentiment:', error);
+                setMonitoringData(null);
+            } finally {
+                setMonitoringLoading(false);
+            }
+        };
+
+        fetchMonitoringSentiment();
+    }, [companySymbol]);
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
@@ -54,6 +83,18 @@ export default function SentimentSection({ sentimentData, isLoading = false }: S
         return '#facc15'; // Yellow
     };
 
+    const getTrendingIcon = (trending: string) => {
+        if (trending === 'up') return <FiTrendingUp className="text-green-500" />;
+        if (trending === 'down') return <FiTrendingDown className="text-red-500" />;
+        return <FiMinus className="text-yellow-500" />;
+    };
+
+    const getTrendingColor = (trending: string) => {
+        if (trending === 'up') return '#4ade80';
+        if (trending === 'down') return '#ef4444';
+        return '#facc15';
+    };
+
     const sentimentColor = getSentimentColor(sentimentScore);
 
     return (
@@ -79,6 +120,111 @@ export default function SentimentSection({ sentimentData, isLoading = false }: S
                     </div>
                 </div>
             </div>
+
+            {/* Real-Time Monitoring Section (NEW!) */}
+            {monitoringData && (
+                <div className="neumorphic-card rounded-3xl p-8 border-4 border-purple-200" style={{
+                    background: 'linear-gradient(135deg, rgba(251, 243, 255, 0.95) 0%, rgba(243, 232, 255, 0.95) 100%)',
+                    backdropFilter: 'blur(15px)',
+                    boxShadow: '0 0 40px rgba(167, 139, 250, 0.3), 16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)'
+                }}>
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{
+                                background: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)',
+                                boxShadow: '0 4px 12px rgba(167, 139, 250, 0.4)'
+                            }}>
+                                <span className="text-2xl">🚀</span>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold" style={{ color: '#5b21b6' }}>Real-Time News Monitoring</h3>
+                                <p className="text-sm font-medium" style={{ color: '#7c3aed' }}>
+                                    Live sentiment from {monitoringData.total_articles} articles (Last 24 hours)
+                                </p>
+                            </div>
+                        </div>
+                        <div className="px-4 py-2 rounded-xl flex items-center gap-2" style={{
+                            background: getTrendingColor(monitoringData.trending),
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}>
+                            {getTrendingIcon(monitoringData.trending)}
+                            <span className="text-sm font-bold text-white">
+                                {monitoringData.trending.toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Positive */}
+                        <div className="bg-white/90 backdrop-blur rounded-2xl p-4 text-center" style={{
+                            boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                        }}>
+                            <div className="text-3xl font-bold mb-1 text-green-500">
+                                {monitoringData.sentiment_breakdown.positive}
+                            </div>
+                            <div className="text-xs font-semibold text-gray-600">Positive</div>
+                            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-green-400 transition-all duration-1000"
+                                    style={{ width: `${(monitoringData.sentiment_breakdown.positive / monitoringData.total_articles * 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Negative */}
+                        <div className="bg-white/90 backdrop-blur rounded-2xl p-4 text-center" style={{
+                            boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                        }}>
+                            <div className="text-3xl font-bold mb-1 text-red-500">
+                                {monitoringData.sentiment_breakdown.negative}
+                            </div>
+                            <div className="text-xs font-semibold text-gray-600">Negative</div>
+                            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-red-400 transition-all duration-1000"
+                                    style={{ width: `${(monitoringData.sentiment_breakdown.negative / monitoringData.total_articles * 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Neutral */}
+                        <div className="bg-white/90 backdrop-blur rounded-2xl p-4 text-center" style={{
+                            boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                        }}>
+                            <div className="text-3xl font-bold mb-1 text-yellow-500">
+                                {monitoringData.sentiment_breakdown.neutral}
+                            </div>
+                            <div className="text-xs font-semibold text-gray-600">Neutral</div>
+                            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-yellow-400 transition-all duration-1000"
+                                    style={{ width: `${(monitoringData.sentiment_breakdown.neutral / monitoringData.total_articles * 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+
+                        {/* Confidence */}
+                        <div className="bg-white/90 backdrop-blur rounded-2xl p-4 text-center" style={{
+                            boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)'
+                        }}>
+                            <div className="text-3xl font-bold mb-1 text-purple-500">
+                                {(monitoringData.avg_confidence * 100).toFixed(0)}%
+                            </div>
+                            <div className="text-xs font-semibold text-gray-600">Confidence</div>
+                            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-purple-400 transition-all duration-1000"
+                                    style={{ width: `${(monitoringData.avg_confidence * 100)}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 text-center text-sm font-medium" style={{ color: '#6d28d9' }}>
+                        Powered by FinBERT • 200+ articles/cycle from 7 sources
+                    </div>
+                </div>
+            )}
 
             {/* Top Row: Trends Chart & Sentiment Scores */}
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

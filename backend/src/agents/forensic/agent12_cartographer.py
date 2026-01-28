@@ -33,7 +33,7 @@ class CartographerAgent:
                 return
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.model = genai.GenerativeModel(settings.gemini_model_name)
             logger.info("Gemini model initialized for Cartographer Agent")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")

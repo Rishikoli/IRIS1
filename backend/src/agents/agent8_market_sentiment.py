@@ -37,7 +37,7 @@ class MarketSentimentAgent:
                 return
 
             genai.configure(api_key=settings.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+            self.gemini_model = genai.GenerativeModel(settings.gemini_model_name)
             logger.info("Gemini model initialized for sentiment analysis")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
@@ -174,7 +174,7 @@ class MarketSentimentAgent:
             try:
                 # Configure with current key
                 genai.configure(api_key=key)
-                model = genai.GenerativeModel('gemini-2.5-flash')
+                model = genai.GenerativeModel(settings.gemini_model_name)
                 
                 response = model.generate_content(prompt)
                 

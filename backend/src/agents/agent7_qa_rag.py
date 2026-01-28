@@ -111,7 +111,7 @@ class QASystem:
         try:
             genai.configure(api_key=settings.gemini_api_key)
             self.gemini_model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
+                model_name=settings.gemini_model_name,
                 generation_config=genai.types.GenerationConfig(
                     temperature=0.1,
                     max_output_tokens=2048,
@@ -224,7 +224,7 @@ You are a financial analysis expert specializing in Indian public companies. Ans
                     genai.configure(api_key=key)
                     # Create a fresh model instance to ensure key is used
                     model = genai.GenerativeModel(
-                        model_name="gemini-2.5-flash",
+                        model_name=settings.gemini_model_name,
                         generation_config=genai.types.GenerationConfig(
                             temperature=0.1,
                             max_output_tokens=2048,
@@ -312,8 +312,8 @@ You are a financial analysis expert specializing in Indian public companies. Ans
 
             if not search_results:
                 return {
-                    "success": False,
-                    "answer": "I don't have sufficient information in my knowledge base to answer this question. Please try asking about specific financial metrics, ratios, or analysis methods.",
+                    "success": True, # Still success in terms of completion
+                    "answer": "I don't have sufficient information in my knowledge base to answer this question. Please try running a forensic analysis first or uploading relevant PDFs using the connector.",
                     "confidence": "Low",
                     "context_used": 0
                 }

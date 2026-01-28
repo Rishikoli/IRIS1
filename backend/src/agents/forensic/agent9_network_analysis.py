@@ -35,7 +35,7 @@ class NetworkAnalysisAgent:
                 return
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.model = genai.GenerativeModel(settings.gemini_model_name)
             logger.info("Gemini model initialized for RPT analysis")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
@@ -86,18 +86,29 @@ class NetworkAnalysisAgent:
                 return await asyncio.to_thread(self.exchange.get_shareholding_pattern, company_symbol)
 
             # Start independent tasks
+            # Task 4: Fetch Financial Summary (for Semantic Audit)
+            async def get_financials():
+                return await asyncio.to_thread(self._fetch_financial_summary, company_symbol)
+            
             task_insiders = asyncio.create_task(get_insiders())
-            task_auditor = asyncio.create_task(run_auditor())
+            task_auditor_standalone = asyncio.create_task(run_auditor()) # We will re-run or wait?
+            # Actually, let's wait for financials then run auditor
             task_exchange = asyncio.create_task(run_exchange())
+            task_financials = asyncio.create_task(get_financials())
             
             # Wait for insiders to start Gemini
             insiders = await task_insiders
+            financials = await task_financials
             
-            # Now start Gemini (needs insiders)
+            # Now start Gemini and Auditor with financials
             async def run_gemini():
                 return await asyncio.to_thread(self._analyze_rpt_with_gemini, clean_symbol, insiders)
                 
+            async def run_auditor_with_financials():
+                return await asyncio.to_thread(self.auditor.analyze_annual_report, company_symbol, financial_data=financials)
+
             task_gemini = asyncio.create_task(run_gemini())
+            task_auditor = asyncio.create_task(run_auditor_with_financials())
             
             # Wait for all remaining tasks
             # Wait for all remaining tasks
@@ -205,6 +216,30 @@ class NetworkAnalysisAgent:
             logger.error(f"Error fetching insiders: {e}")
             return []
 
+    def _fetch_financial_summary(self, symbol: str) -> Dict[str, Any]:
+        """Fetch a summary of financial ratios for semantic audit"""
+        try:
+            ticker = yf.Ticker(symbol)
+            
+            # Calculate basic ratios
+            info = ticker.info
+            
+            summary = {
+                "current_ratio": info.get("currentRatio"),
+                "debt_to_equity": info.get("debtToEquity"),
+                "quick_ratio": info.get("quickRatio"),
+                "net_margin": info.get("profitMargins"),
+                "revenue_growth": info.get("revenueGrowth"),
+                "earnings_growth": info.get("earningsGrowth"),
+                "return_on_equity": info.get("returnOnEquity")
+            }
+            
+            # Clean up None values
+            return {k: v for k, v in summary.items() if v is not None}
+        except Exception as e:
+            logger.error(f"Error fetching financials: {e}")
+            return {}
+
     def _add_insiders_to_graph(self, G: nx.DiGraph, company: str, insiders: List[Dict]):
         """Add real insiders to the graph"""
         for insider in insiders:
@@ -260,7 +295,7 @@ class NetworkAnalysisAgent:
                     # Configure with current key
                     current_key = keys[current_key_index]
                     genai.configure(api_key=current_key)
-                    model = genai.GenerativeModel('gemini-2.5-flash')
+                    model = genai.GenerativeModel(settings.gemini_model_name)
 
                     response = model.generate_content(prompt)
                     text = response.text.strip()

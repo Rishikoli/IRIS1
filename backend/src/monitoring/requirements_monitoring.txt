@@ -1,0 +1,24 @@
+# News Monitoring System Requirements
+#
+# Install: pip install -r requirements_monitoring.txt
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0  # PostgreSQL adapter
+
+# Already installed (from previous work)
+transformers>=4.30.0
+torch>=2.0.0
+accelerate>=0.21.0
+
+# News scraping (already installed)
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+feedparser>=6.0.10
+pandas>=2.1.0
+
+# Scheduler (optional)
+schedule>=1.2.0
+
+# Notifications (optional - for alerts)
+python-dotenv>=1.0.0  # For environment variables

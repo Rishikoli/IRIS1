@@ -35,13 +35,7 @@ def list_models():
             if 'generateContent' in m.supported_generation_methods:
                 print(f"- {m.name}")
                 
-        print("\nNow testing a simple generation with a discovered model...")
-        # Try to find a flash model or pro model
-        models = [m for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        target_model = next((m.name for m in models if 'flash' in m.name), None)
-        if not target_model:
-            target_model = next((m.name for m in models if 'gemini' in m.name), None)
-            
+        target_model = settings.gemini_model_name
         if target_model:
             print(f"Testing with: {target_model}")
             model = genai.GenerativeModel(target_model)

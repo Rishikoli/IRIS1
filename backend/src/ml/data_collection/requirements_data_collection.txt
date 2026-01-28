@@ -1,0 +1,21 @@
+# Data Collection Requirements
+#
+# Install these dependencies to run the data collection scripts:
+# pip install -r requirements_data_collection.txt
+
+# Web scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+feedparser>=6.0.10
+
+# PDF processing
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+
+# Data processing
+pandas>=2.1.0
+numpy>=1.24.0
+
+# Utilities
+python-dateutil>=2.8.2

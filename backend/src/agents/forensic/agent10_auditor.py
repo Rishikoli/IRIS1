@@ -32,15 +32,16 @@ class AuditorAgent:
                 return
             
             genai.configure(api_key=api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.model = genai.GenerativeModel(settings.gemini_model_name)
             logger.info("Gemini model initialized for Auditor Agent")
         except Exception as e:
             logger.error(f"Failed to initialize Gemini: {str(e)}")
 
-    def analyze_annual_report(self, company_symbol: str, pdf_url: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_annual_report(self, company_symbol: str, pdf_url: Optional[str] = None, financial_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Orchestrates the process: Search -> Download -> Analyze
         If pdf_url is provided, skips search.
+        financial_data can be passed to perform 'Semantic Audit' (Management Narrative vs Reality)
         """
         try:
             company_name = company_symbol.split('.')[0] # Simple cleanup
@@ -64,13 +65,20 @@ class AuditorAgent:
             # Full PDF might be too large, so we'll be smart about extraction
             text_content = self._extract_relevant_text(pdf_content)
             
-            # 4. Analyze with Gemini
-            analysis_result = self._analyze_text_with_gemini(text_content, company_name)
+            # 4. Analyze with Gemini for RPTs
+            rpt_analysis = self._analyze_text_with_gemini(text_content, company_name)
+            
+            # 5. Perform Semantic Audit if financial data is provided
+            semantic_audit = None
+            if financial_data:
+                logger.info(f"Performing Semantic Audit for {company_name}...")
+                semantic_audit = self._perform_semantic_audit(text_content, financial_data, company_name)
             
             return {
                 "status": "success",
                 "source_url": pdf_url,
-                "analysis": analysis_result
+                "analysis": rpt_analysis,
+                "semantic_audit": semantic_audit
             }
 
         except Exception as e:
@@ -207,10 +215,10 @@ class AuditorAgent:
             
             # Strategy:
             # 1. Read Table of Contents (first 10 pages)
-            # 2. Search for "Related Party" in the whole doc (or sampled)
-            # For efficiency, we'll scan pages containing "Related Party"
+            # 2. Search for "Related Party" and "Management Discussion" in the doc
+            # For efficiency, we'll scan pages containing these keywords
             
-            rpt_pages = []
+            keywords = ["related party", "related parties", "management discussion", "mda", "mda analysis", "directors' report"]
             
             for i in range(total_pages):
                 # Simple heuristic: Check every page? Too slow for 400 pages.
@@ -226,7 +234,8 @@ class AuditorAgent:
                 
                 try:
                     text = reader.pages[i].extract_text()
-                    if "related party" in text.lower() or "related parties" in text.lower():
+                    low_text = text.lower()
+                    if any(kw in low_text for kw in keywords):
                         extracted_text += f"\n--- Page {i+1} ---\n" + text
                 except:
                     pass
@@ -292,4 +301,49 @@ class AuditorAgent:
                     if attempt == max_retries - 1:
                          return {"related_parties": [], "transactions": [], "error": "Rate Limit Exceeded"}
         
-        return {"related_parties": [], "transactions": []}
+    def _perform_semantic_audit(self, text: str, financials: Dict[str, Any], company: str) -> Dict[str, Any]:
+        """Compare Management Narrative (MDA) against Hard Financial Numbers"""
+        try:
+            # We use the centralized rate limiter here (if available) or direct call
+            # To stay consistent with previous restriction to gemini-2.5-flash
+            
+            prompt = f"""
+            You are a Senior Forensic Auditor. I have extracted the Management Discussion & Analysis (MDA) section from '{company}''s Annual Report.
+            
+            I also have the following HARD FINANCIAL DATA for the same period:
+            {json.dumps(financials, indent=2)}
+            
+            Management Narrative (Extracted MDA):
+            {text[:50000]}... (truncated)
+            
+            Task:
+            1. Extract key claims from management about Liquidity, Debt, Growth, and Profitability.
+            2. Compare these claims against the HARD FINANCIAL DATA.
+            3. Identify "Narrative Disconnects" where management uses flowery or positive language to mask negative trends (e.g., claiming "improved liquidity" while Current Ratio dropped).
+            4. Assign a "Governance Integrity Score" (0-100) based on how honest the narrative is.
+            
+            Return JSON format ONLY:
+            {{
+                "narrative_claims": [
+                    {{"topic": "Liquidity/Debt/etc", "claim": "Exact quote or summary", "reality": "What numbers say", "is_disconnect": boolean, "severity": "Low/Medium/High"}}
+                ],
+                "integrity_score": 0-100,
+                "summary": "Overall forensic assessment of management honesty"
+            }}
+            """
+            
+            # Re-use the rate limiter if imported, otherwise direct call
+            # Since I restricted everywhere to gemini_model_name
+            response = self.model.generate_content(prompt)
+            text_resp = response.text.strip()
+            
+            # Clean markdown
+            if text_resp.startswith("```json"):
+                text_resp = text_resp[7:-3]
+            elif text_resp.startswith("```"):
+                text_resp = text_resp[3:-3]
+                
+            return json.loads(text_resp)
+        except Exception as e:
+            logger.error(f"Semantic Audit failed: {e}")
+            return {"error": str(e), "integrity_score": 0}

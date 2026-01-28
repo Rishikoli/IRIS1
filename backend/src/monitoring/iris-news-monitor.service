@@ -1,0 +1,18 @@
+[Unit]
+Description=IRIS News Monitoring Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=aditya
+WorkingDirectory=/home/aditya/IRIS1/backend/src/monitoring
+EnvironmentFile=/home/aditya/IRIS1/backend/src/monitoring/.env
+ExecStart=/home/aditya/IRIS1/backend/iris_venv/bin/python3 /home/aditya/IRIS1/backend/src/monitoring/scheduler.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/iris-monitoring.log
+StandardError=append:/var/log/iris-monitoring-error.log
+
+[Install]
+WantedBy=multi-user.target

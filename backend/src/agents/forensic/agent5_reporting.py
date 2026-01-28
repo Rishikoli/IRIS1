@@ -107,7 +107,7 @@ class ReportingAgent:
                 
                 # Initialize model
                 model = genai.GenerativeModel(
-                    model_name="gemini-2.5-flash",
+                    model_name=settings.gemini_model_name,
                     generation_config=genai.types.GenerationConfig(
                         temperature=0.1,
                         max_output_tokens=8192,
@@ -180,12 +180,16 @@ Please analyze the following financial data and provide a comprehensive executiv
 - Current Ratio: {self._extract_metric(forensic_data, 'current_ratio', 'N/A')}
 - Debt-to-Equity: {self._extract_metric(forensic_data, 'debt_to_equity', 'N/A')}
 
+**MANAGEMENT NARRATIVE AUDIT (SEMANTIC AUDIT):**
+{json.dumps(analysis_data.get('semantic_audit', {}), indent=2)}
+
 Please provide:
 1. **Executive Overview** (2-3 sentences): Overall company health and investment attractiveness
 2. **Key Financial Highlights** (3-4 bullet points): Most important financial metrics and trends
 3. **Risk Assessment Summary** (2-3 bullet points): Main risk factors and mitigation
 4. **Compliance Status** (1-2 bullet points): Regulatory compliance situation
-5. **Investment Recommendation** (1-2 sentences): Clear actionable recommendation
+5. **Management Narrative Integrity** (2-3 bullet points): Highlight any "Narrative Disconnects" where management's claims contradict the hard numbers. Use the provided Semantic Audit data.
+6. **Investment Recommendation** (1-2 sentences): Clear actionable recommendation
 
 Keep the summary concise, professional, and focused on actionable insights for senior management.
 """
@@ -245,6 +249,49 @@ Keep the summary concise, professional, and focused on actionable insights for s
             return default
         except:
             return default
+
+    async def generate_enforcement_rfi(self, company_symbol: str, findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Feature 5: Automated Enforcement RFI
+        Drafts a professional Request for Information (RFI) for the Audit Committee.
+        """
+        import google.generativeai as genai
+        
+        prompt = f"""
+        You are a Legal & Compliance Officer specializing in SEBI regulations. 
+        I have scientific forensic findings about '{company_symbol}' that suggest potential violations of SEBI LODR Regulation 23 (Related Party Transactions).
+        
+        FORENSIC FINDINGS:
+        {json.dumps(findings, indent=2)}
+        
+        Task:
+        Draft a professional, stern, but objective "Request for Information" (RFI) letter addressed to the "Audit Committee and Board of Directors" of {company_symbol}.
+        
+        The letter should:
+        1. State that an AI-driven forensic audit (Project IRIS) has flagged specific anomalies.
+        2. Reference specific legal sections (e.g., Section 188 of Companies Act 2013, SEBI LODR).
+        3. Request detailed clarifications on the specified transactions within 15 days.
+        4. Maintain a formal regulatory tone.
+        
+        Return the letter text directly.
+        """
+        
+        try:
+            # Configure with first available key
+            genai.configure(api_key=settings.gemini_api_key)
+            model = genai.GenerativeModel(settings.gemini_model_name)
+            
+            response = await asyncio.to_thread(model.generate_content, prompt)
+            
+            return {
+                "success": True,
+                "rfi_draft": response.text.strip(),
+                "target_committee": "Audit Committee",
+                "law_references": ["SEBI LODR Reg 23", "Companies Act Section 188"]
+            }
+        except Exception as e:
+            logger.error(f"RFI generation failed: {e}")
+            return {"success": False, "error": str(e)}
 
     def generate_forensic_report(self, company_symbol: str, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate comprehensive forensic report"""
@@ -307,6 +354,24 @@ Keep the summary concise, professional, and focused on actionable insights for s
                     if benford.get("success"):
                         report_data["benford_analysis"] = benford.get("benford_analysis", {})
 
+                # Feature 2: GST-Revenue Reconciliation
+                if "gst_reconciliation" in forensic:
+                    gst = forensic["gst_reconciliation"]
+                    if gst.get("success"):
+                        report_data["gst_reconciliation"] = gst.get("reconciliation_results", [])
+
+                # Feature 4: Contingent Liability Analysis
+                if "contingent_liability_risk" in forensic:
+                    cl = forensic["contingent_liability_risk"]
+                    if cl.get("success"):
+                        report_data["contingent_liability_risk"] = cl
+
+                # Feature 3: Greed Index
+                if "greed_index" in forensic:
+                    greed = forensic["greed_index"]
+                    if greed.get("success"):
+                        report_data["greed_index"] = greed
+
             # Risk Assessment
             if "risk_assessment" in analysis_data:
                 risk = analysis_data["risk_assessment"]
@@ -322,6 +387,10 @@ Keep the summary concise, professional, and focused on actionable insights for s
                 anomalies = analysis_data["anomaly_detection"]
                 if anomalies.get("success"):
                     report_data["anomaly_detection"] = anomalies.get("anomalies", [])
+
+            # Semantic Audit
+            if "semantic_audit" in analysis_data:
+                report_data["semantic_audit"] = analysis_data["semantic_audit"]
 
             return {
                 "success": True,

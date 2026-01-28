@@ -179,7 +179,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
           </div>
         );
       case 'sentiment':
-        return <SentimentSection sentimentData={sentimentData} isLoading={isSentimentLoading} />;
+        return <SentimentSection sentimentData={sentimentData} isLoading={isSentimentLoading} companySymbol={analysisData?.company_id} />;
       case 'vertical':
         return <VerticalAnalysisChart data={analysisData.vertical_analysis} />;
       case 'horizontal':

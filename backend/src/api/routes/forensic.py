@@ -471,6 +471,16 @@ async def run_forensic_analysis_api(company_symbol: str):
         # Sanitize all values for JSON serialization (handle numpy types/NaN/etc.)
         response_data = _make_json_safe(response_data)
 
+        # 5. Index for Q&A in the background
+        try:
+            from src.agents.agent7_qa_rag import index_company_for_qa
+            # We can use BackgroundTasks but for now we'll do it synchronously 
+            # as it's just embeddings locally
+            index_company_for_qa(company_symbol, response_data)
+            logger.info(f"Successfully indexed {company_symbol} for Q&A")
+        except Exception as e:
+            logger.warning(f"Indexing for Q&A failed for {company_symbol}: {e}")
+
         logger.info(f"Forensic analysis completed for {company_symbol} with real data")
         return response_data
 

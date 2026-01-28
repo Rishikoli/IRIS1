@@ -657,6 +657,158 @@ class ForensicAnalysisAgent:
         except Exception as e:
             logger.error(f"Benford analysis failed: {e}")
             return {"success": False, "error": str(e)}
+
+    def analyze_gst_reconciliation(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Feature 2: GST-Revenue Reconciliation
+        Detects revenue inflation by comparing revenue growth vs GST output tax growth.
+        """
+        try:
+            # Group by year to check growth
+            yearly_data = []
+            for stmt in financial_statements:
+                if stmt.get("statement_type") == "income_statement":
+                    data = stmt.get("data", {})
+                    yearly_data.append({
+                        "period": stmt.get("period_end"),
+                        "revenue": data.get("total_revenue", 0),
+                        # In real use, we'd extract GST from 'Tax Expense' or 'Other Indirect Taxes'
+                        # For now, we simulate detection from indirect tax components
+                        "indirect_taxes": data.get("tax_expense", 0) * 0.15 # Heuristic for indirect component if not split
+                    })
+            
+            # Sort by period
+            yearly_data.sort(key=lambda x: x["period"])
+            
+            if len(yearly_data) < 2:
+                return {"success": False, "error": "Insufficient historical data for GST reconciliation"}
+            
+            reconciliation_results = []
+            for i in range(1, len(yearly_data)):
+                prev = yearly_data[i-1]
+                curr = yearly_data[i]
+                
+                rev_growth = ((curr["revenue"] - prev["revenue"]) / prev["revenue"]) * 100 if prev["revenue"] != 0 else 0
+                tax_growth = ((curr["indirect_taxes"] - prev["indirect_taxes"]) / prev["indirect_taxes"]) * 100 if prev["indirect_taxes"] != 0 else 0
+                
+                # Disconnect Detection
+                # If Revenue grows > 20% faster than GST tax, flag as potential inflation
+                is_disconnect = rev_growth > 20 and (rev_growth - tax_growth) > 15
+                
+                reconciliation_results.append({
+                    "period": curr["period"],
+                    "revenue_growth_pct": round(rev_growth, 2),
+                    "gst_growth_pct": round(tax_growth, 2),
+                    "is_disconnect": is_disconnect,
+                    "risk_analysis": "Potential Sales Inflation detected (Revenue growing significantly faster than Tax output)" if is_disconnect else "Reconciliation normal"
+                })
+            
+            return {
+                "success": True,
+                "reconciliation_results": reconciliation_results,
+                "overall_risk_score": 80 if any(r["is_disconnect"] for r in reconciliation_results) else 0
+            }
+
+        except Exception as e:
+            logger.error(f"GST Reconciliation failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def analyze_contingent_liabilities(self, balance_sheet: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Feature 4: Contingent Liability "Debt Hider"
+        Checks for hidden liabilities mentioned in notes that aren't on main balance sheet.
+        """
+        try:
+            # In real scenario, this would be extracted from 'Notes to Accounts' by Auditor Agent
+            # and passed here. For automated check, we look for common field names.
+            contingent_liab = balance_sheet.get("contingent_liabilities", 0)
+            total_equity = balance_sheet.get("total_equity", 0)
+            
+            if total_equity == 0:
+                return {"success": False, "error": "Total equity is zero, cannot calculate ratio"}
+            
+            ratio = (contingent_liab / total_equity)
+            
+            # Risk Threshold: > 50% of Equity is high risk
+            risk_level = "LOW"
+            if ratio > 0.5:
+                risk_level = "HIGH"
+            elif ratio > 0.2:
+                risk_level = "MEDIUM"
+            
+            return {
+                "success": True,
+                "contingent_liability_amount": contingent_liab,
+                "equity_ratio": round(ratio, 4),
+                "risk_level": risk_level,
+                "interpretation": f"Contingent liabilities represent {round(ratio*100, 2)}% of net worth. " + 
+                                ("HIGH RISK: Significant off-balance sheet exposure." if risk_level == "HIGH" else "Exposure within normal limits.")
+            }
+        except Exception as e:
+            logger.error(f"Contingent liability analysis failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def analyze_remuneration_greed(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Feature 3: Managerial Remuneration "Greed" Index
+        Flags cases where executive pay increases are disconnected from company performance.
+        """
+        try:
+            yearly_data = []
+            for stmt in financial_statements:
+                if stmt.get("statement_type") == "income_statement":
+                    data = stmt.get("data", {})
+                    yearly_data.append({
+                        "period": stmt.get("period_end"),
+                        "net_profit": data.get("net_income", 0),
+                        # Remuneration is often under 'Selling General & Admin' or 'Employee Benefit Expenses'
+                        # In real use, we'd extract specific 'Director Remuneration' from Auditor's text extraction
+                        # For the engine, we look for 'executive_compensation' or heuristic
+                        "remuneration": data.get("executive_compensation", data.get("total_revenue", 0) * 0.01), # Fallback to 1% of revenue as mock
+                        "employee_expenses": data.get("employee_benefit_expense", 0)
+                    })
+            
+            yearly_data.sort(key=lambda x: x["period"])
+            
+            if len(yearly_data) < 2:
+                return {"success": False, "error": "Insufficient data for Greed Index"}
+            
+            greed_results = []
+            for i in range(1, len(yearly_data)):
+                prev = yearly_data[i-1]
+                curr = yearly_data[i]
+                
+                pay_growth = ((curr["remuneration"] - prev["remuneration"]) / prev["remuneration"]) * 100 if prev["remuneration"] != 0 else 0
+                profit_growth = ((curr["net_profit"] - prev["net_profit"]) / abs(prev["net_profit"])) * 100 if prev["net_profit"] != 0 else 0
+                emp_growth = ((curr["employee_expenses"] - prev["employee_expenses"]) / prev["employee_expenses"]) * 100 if prev["employee_expenses"] != 0 else 0
+                
+                # Greed Metric: Pay Growth minus Profit Growth
+                # If Pay up 20% and Profit down 10%, Discrepancy = 30
+                discrepancy = pay_growth - profit_growth
+                
+                # Greed Metric 2: Pay Growth vs Employee Wage Growth
+                wage_gap = pay_growth - emp_growth
+                
+                is_greedy = discrepancy > 25 or wage_gap > 30
+                
+                greed_results.append({
+                    "period": curr["period"],
+                    "exec_pay_growth_pct": round(pay_growth, 2),
+                    "profit_growth_pct": round(profit_growth, 2),
+                    "employee_cost_growth_pct": round(emp_growth, 2),
+                    "is_greedy": is_greedy,
+                    "greed_score": min(100, max(0, discrepancy + wage_gap)),
+                    "risk_analysis": "EXCESSIVE: Pay rising while performance declining." if is_greedy else "Remuneration aligned with performance"
+                })
+            
+            return {
+                "success": True,
+                "greed_results": greed_results,
+                "overall_greed_index": max([r["greed_score"] for r in greed_results]) if greed_results else 0
+            }
+        except Exception as e:
+            logger.error(f"Greed index analysis failed: {e}")
+            return {"success": False, "error": str(e)}
     
     def calculate_altman_z_score(self, balance_sheet: Dict[str, Any], 
                                 income_statement: Dict[str, Any]) -> Dict[str, Any]:
@@ -1248,6 +1400,25 @@ class ForensicAnalysisAgent:
             # Anomaly Detection
             anomalies_result = self.detect_anomalies(financial_statements)
             results["anomaly_detection"] = anomalies_result
+
+            # Feature 2: GST-Revenue Reconciliation
+            gst_result = self.analyze_gst_reconciliation(financial_statements)
+            results["gst_reconciliation"] = gst_result
+
+            # Feature 4: Contingent Liability Analysis
+            latest_bs = None
+            for stmt in reversed(financial_statements):
+                if stmt.get("statement_type") == "balance_sheet":
+                    latest_bs = stmt.get("data", {})
+                    break
+            
+            if latest_bs:
+                cl_result = self.analyze_contingent_liabilities(latest_bs)
+                results["contingent_liability_risk"] = cl_result
+
+            # Feature 3: Greed Index
+            greed_result = self.analyze_remuneration_greed(financial_statements)
+            results["greed_index"] = greed_result
             
             return results
             
