@@ -5,7 +5,8 @@ import { FiSearch, FiTrendingUp, FiShield, FiBarChart, FiActivity, FiSettings } 
 import CompanySearch from '@/components/CompanySearch'
 import AnalysisDisplay from '@/components/AnalysisDisplay'
 import RiskDashboard from '@/components/RiskDashboard'
-import ResultsVisualization from '@/components/ResultsVisualization'
+import ResultsVisualization from '@/components/ResultsVisualization' // Keep for legacy or specific use if needed
+import ForensicSection from '@/components/ForensicSection' // Add import
 
 
 interface AnalysisResult {
@@ -24,7 +25,7 @@ interface RiskScore {
   success: boolean
   company_id: string
   risk_score: {
-    overall_score: number
+    overall_risk_score: number // Renamed from overall_score
     risk_level: string
     confidence_score: number
     risk_factors: string[]
@@ -32,6 +33,7 @@ interface RiskScore {
     investment_recommendation?: string
     monitoring_frequency?: string
     category_scores?: any
+    shap_values?: Record<string, number> // Add missing optional property
   }
 }
 
@@ -42,6 +44,11 @@ export default function IRISDashboard() {
   const [selectedCompany, setSelectedCompany] = useState<string>('')
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
   const [riskScore, setRiskScore] = useState<RiskScore | null>(null)
+
+  // Sentiment Data State
+  const [sentimentData, setSentimentData] = useState<any>(null)
+  const [isSentimentLoading, setIsSentimentLoading] = useState(false)
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
 
@@ -77,14 +84,15 @@ export default function IRISDashboard() {
           success: true,
           company_id: companySymbol,
           risk_score: {
-            overall_score: analysisData.risk_assessment.overall_risk_score || 45,
+            overall_risk_score: analysisData.risk_assessment.overall_risk_score || 45, // Renamed from overall_score
             risk_level: analysisData.risk_assessment.risk_level || 'MEDIUM',
             confidence_score: analysisData.risk_assessment.confidence_score || 0.8,
             risk_factors: analysisData.risk_assessment.risk_factors || [],
             analysis_timestamp: analysisData.analysis_timestamp,
             investment_recommendation: analysisData.risk_assessment.investment_recommendation,
             monitoring_frequency: analysisData.risk_assessment.monitoring_frequency,
-            category_scores: analysisData.risk_assessment.category_scores
+            category_scores: analysisData.risk_assessment.category_scores,
+            shap_values: analysisData.risk_assessment.shap_values
           }
         })
       } else {
@@ -102,6 +110,25 @@ export default function IRISDashboard() {
           console.warn('Could not fetch separate risk score:', error)
         }
       }
+
+
+      // Fetch Sentiment Analysis (Parallel)
+      setIsSentimentLoading(true)
+      fetch('/api/v1/sentiment/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ company_symbol: companySymbol }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setSentimentData(data.data)
+          }
+        })
+        .catch(err => console.error('Sentiment fetch failed:', err))
+        .finally(() => setIsSentimentLoading(false))
 
       setActiveTab('results')
     } catch (err) {
@@ -123,9 +150,11 @@ export default function IRISDashboard() {
           error={error}
         />
       case 'results':
-        return <ResultsVisualization
-          analysisResult={analysisResult}
+        return <ForensicSection
+          analysisData={analysisResult}
           isLoading={isLoading}
+          sentimentData={sentimentData}
+          isSentimentLoading={isSentimentLoading}
         />
       case 'risk':
         return <RiskDashboard
@@ -170,11 +199,10 @@ export default function IRISDashboard() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as ActiveTab)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg ${
-                    activeTab === tab.id
-                      ? 'neumorphic-inset'
-                      : 'neumorphic-button hover:neumorphic-inset'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium transition-all duration-200 rounded-lg ${activeTab === tab.id
+                    ? 'neumorphic-inset'
+                    : 'neumorphic-button hover:neumorphic-inset'
+                    }`}
                   style={{
                     background: activeTab === tab.id ? '#e0e0e0' : 'transparent',
                     color: activeTab === tab.id ? '#333' : '#666',
@@ -196,7 +224,7 @@ export default function IRISDashboard() {
       {/* Main Content Area */}
       <main className="flex-1 p-6 relative">
         {/* Animated Grid Background - Upward to Downward Flow */}
-    
+
         {/* Content Overlay */}
         <div className="relative z-10 max-w-7xl mx-auto">
           {renderContent()}

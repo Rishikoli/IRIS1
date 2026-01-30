@@ -27,3 +27,4 @@ Thumbs.db
 # Environment Variables
 .env
 .env.*
+backend/reports/

@@ -43,12 +43,14 @@ class ForensicAnalysisAgent:
             # Get quarterly data for more historical periods
             quarterly_income = ticker.quarterly_financials
             quarterly_balance = ticker.quarterly_balance_sheet
+            quarterly_cashflow = ticker.quarterly_cashflow
 
             if quarterly_income is None or quarterly_balance is None:
                 return {"success": False, "error": f"Insufficient quarterly data for {symbol}"}
 
-            print(f"✅ Retrieved {len(quarterly_income.columns)} quarters of income statements")
-            print(f"✅ Retrieved {len(quarterly_balance.columns)} quarters of balance sheets")
+            print(f"✅ Retrieved {len(quarterly_income.columns) if quarterly_income is not None else 0} quarters of income statements")
+            print(f"✅ Retrieved {len(quarterly_balance.columns) if quarterly_balance is not None else 0} quarters of balance sheets")
+            print(f"✅ Retrieved {len(quarterly_cashflow.columns) if quarterly_cashflow is not None else 0} quarters of cash flow statements")
 
             # Enhanced Yahoo Finance to Agent field mapping
             yahoo_to_agent_mapping = {
@@ -102,6 +104,14 @@ class ForensicAnalysisAgent:
                     # Cash fields
                     'Cash And Cash Equivalents': 'cash_and_equivalents',
                     'CashAndCashEquivalents': 'cash_and_equivalents',
+                    'Other Short Term Investments': 'short_term_investments',
+                    'OtherShortTermInvestments': 'short_term_investments',
+                },
+                'cash_flow_statement': {
+                    # Operating Activities
+                    'Operating Cash Flow': 'operating_cash_flow',
+                    'Total Cash From Operating Activities': 'operating_cash_flow',
+                    'Cash Flow From Continuing Operating Activities': 'operating_cash_flow'
                 }
             }
 
@@ -109,7 +119,7 @@ class ForensicAnalysisAgent:
             financial_statements = []
 
             # Process up to specified quarters for each statement type
-            periods_to_process = min(quarters, len(quarterly_income.columns), len(quarterly_balance.columns))
+            periods_to_process = min(quarters, len(quarterly_income.columns) if quarterly_income is not None else 0)
 
             for i in range(periods_to_process):
                 # Income Statement
@@ -164,6 +174,32 @@ class ForensicAnalysisAgent:
                         })
                         print(f"  ✅ Balance Sheet {i+1}: {balance_date} ({len(balance_mapped_data)} fields)")
 
+                # Cash Flow Statement
+                if quarterly_cashflow is not None and i < len(quarterly_cashflow.columns):
+                    cash_date = str(quarterly_cashflow.columns[i].date())
+                    cash_yahoo_data = quarterly_cashflow.iloc[:, i].to_dict()
+
+                    # Map Yahoo fields to agent fields
+                    cash_mapped_data = {}
+                    for yahoo_field, agent_field in yahoo_to_agent_mapping['cash_flow_statement'].items():
+                        if yahoo_field in cash_yahoo_data:
+                            value = cash_yahoo_data[yahoo_field]
+                            if value is not None and not pd.isna(value):
+                                try:
+                                    numeric_value = float(value)
+                                    if numeric_value != 0:
+                                        cash_mapped_data[agent_field] = numeric_value
+                                except (ValueError, TypeError):
+                                    continue
+                    
+                    if cash_mapped_data:
+                         financial_statements.append({
+                            'statement_type': 'cash_flow_statement',
+                             'period_end': cash_date,
+                            'data': cash_mapped_data
+                        })
+                         print(f"  ✅ Cash Flow {i+1}: {cash_date} ({len(cash_mapped_data)} fields)")
+
             if not financial_statements:
                 return {"success": False, "error": f"No mappable data found for {symbol}"}
 
@@ -190,6 +226,10 @@ class ForensicAnalysisAgent:
             # Financial Ratios
             ratios_result = self.calculate_financial_ratios(financial_statements)
             results["financial_ratios"] = ratios_result
+
+            # Sloan Ratio
+            sloan_result = self.calculate_sloan_ratio(financial_statements)
+            results["sloan_ratio"] = sloan_result
 
             return results
 
@@ -957,6 +997,223 @@ class ForensicAnalysisAgent:
         except Exception as e:
             logger.error(f"Altman Z-Score calculation failed: {e}")
             return {"success": False, "error": str(e)}
+
+    def calculate_sloan_ratio(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calculate Sloan Ratio (Accruals Ratio) to detect earnings quality issues.
+        Formula: (Net Income - CFO) / Total Assets
+        Result interpretation:
+        - < 5%: Safe
+        - 5-10%: Moderate Risk
+        - > 10%: High Risk (Earnings are not backed by cash)
+        """
+        try:
+            sloan_results = {}
+            
+            # Group statements by period
+            statements_by_period = {}
+            for stmt in financial_statements:
+                period = stmt.get("period_end")
+                stmt_type = stmt.get("statement_type")
+                if period not in statements_by_period:
+                    statements_by_period[period] = {}
+                statements_by_period[period][stmt_type] = stmt.get("data", {})
+            
+            sorted_periods = sorted(statements_by_period.keys())
+            
+            for period in sorted_periods:
+                period_data = statements_by_period[period]
+                
+                income_stmt = period_data.get("income_statement", {})
+                balance_sheet = period_data.get("balance_sheet", {})
+                cash_flow = period_data.get("cash_flow_statement", {})
+                
+                if not (income_stmt and balance_sheet and cash_flow):
+                    continue
+                    
+                net_income = income_stmt.get("net_profit", 0)
+                cfo = cash_flow.get("operating_cash_flow", 0)
+                total_assets = balance_sheet.get("total_assets", 0)
+                
+                # Check for zero assets to avoid division by zero
+                if total_assets == 0:
+                    continue
+                    
+                # Accruals = Net Income - CFO
+                accruals = net_income - cfo
+                
+                # Sloan Ratio = Accruals / Total Assets
+                sloan_ratio = (accruals / total_assets)
+                sloan_pct = sloan_ratio * 100
+                
+                risk_level = "LOW"
+                if sloan_pct > 10 or sloan_pct < -10:
+                     risk_level = "HIGH"
+                elif sloan_pct > 5 or sloan_pct < -5:
+                     risk_level = "MEDIUM"
+                     
+                sloan_results[period] = {
+                    "net_income": net_income,
+                    "operating_cash_flow": cfo,
+                    "accruals": accruals,
+                    "total_assets": total_assets,
+                    "sloan_ratio_pct": round(sloan_pct, 2),
+                    "risk_level": risk_level,
+                    "interpretation": "High probability of earnings manipulation (High Accruals)" if risk_level == "HIGH" else "Safe"
+                }
+                
+            return {
+                "success": True,
+                "sloan_analysis": sloan_results,
+                "analysis_date": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Sloan Ratio calculation failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    def calculate_dechow_f_score(self, financial_statements: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calculate Dechow F-Score (Misstatement Prediction Model).
+        Formula (Model 1):
+        Probability = 1 / (1 + e^-Predicted_Value)
+        Predicted_Value = -7.893 + 0.790 * RSST + 2.518 * Chg_Rec + 1.191 * Chg_Inv + 1.979 * Soft_Assets + 0.171 * Chg_Cash_Sales + -0.932 * Chg_ROA + 1.029 * Issue_Stock
+        
+        Where:
+        - RSST = (WC_Change + NCO_Change + FIN_Change) / Average Assets
+        """
+        try:
+            f_score_results = {}
+            
+            # Group statements
+            statements_by_period = {}
+            for stmt in financial_statements:
+                period = stmt.get("period_end")
+                stmt_type = stmt.get("statement_type")
+                if period not in statements_by_period:
+                    statements_by_period[period] = {}
+                statements_by_period[period][stmt_type] = stmt.get("data", {})
+            
+            sorted_periods = sorted(statements_by_period.keys())
+            
+            # We need at least 2 periods for changes
+            if len(sorted_periods) < 2:
+                return {"success": False, "error": "Insufficient data for Dechow F-Score"}
+            
+            for i in range(1, len(sorted_periods)):
+                curr_period = sorted_periods[i]
+                prev_period = sorted_periods[i-1]
+                
+                curr_data = statements_by_period[curr_period]
+                prev_data = statements_by_period[prev_period]
+                
+                # Helpers to extract data safely
+                def get_val(data, type, field):
+                    return float(data.get(type, {}).get(field, 0))
+                
+                # 1. RSST Accruals
+                # Proxy: (Change in WC + Change in NCO + Change in FIN)
+                # Simplified Proxy commonly used: (Net Income - CFO - CFI) / Avg Assets 
+                # (Note: This is a rough proxy. We will use a component based approach if possible)
+                # Let's use the explicit RSST definition if we have balance sheet items.
+                
+                avg_assets = (get_val(curr_data, "balance_sheet", "total_assets") + get_val(prev_data, "balance_sheet", "total_assets")) / 2
+                if avg_assets == 0: continue
+
+                # Change in Receivables (REC)
+                curr_rec = get_val(curr_data, "balance_sheet", "accounts_receivable")
+                prev_rec = get_val(prev_data, "balance_sheet", "accounts_receivable")
+                chg_rec = (curr_rec - prev_rec) / avg_assets
+                
+                # Change in Inventory (INV)
+                curr_inv = get_val(curr_data, "balance_sheet", "inventory")
+                prev_inv = get_val(prev_data, "balance_sheet", "inventory")
+                chg_inv = (curr_inv - prev_inv) / avg_assets
+                
+                # Soft Assets
+                # (Total Assets - PPE - Cash) / Total Assets
+                curr_assets = get_val(curr_data, "balance_sheet", "total_assets")
+                curr_ppe = get_val(curr_data, "balance_sheet", "property_plant_equipment")
+                curr_cash = get_val(curr_data, "balance_sheet", "cash_and_equivalents")
+                soft_assets = (curr_assets - curr_ppe - curr_cash) / curr_assets if curr_assets != 0 else 0
+                
+                # Change in Cash Sales
+                # Cash Sales = Revenue - Change in Receivables
+                curr_rev = get_val(curr_data, "income_statement", "total_revenue")
+                prev_rev = get_val(prev_data, "income_statement", "total_revenue")
+                curr_cash_sales = curr_rev - (curr_rec - prev_rec)
+                prev_rec_prev = 0 # Need 3 periods for prev_cash_sales properly? 
+                # Simplification: Change in Sales
+                chg_cash_sales = (curr_cash_sales - prev_rev) / prev_rev if prev_rev != 0 else 0
+                
+                # Change in ROA
+                curr_roa = get_val(curr_data, "income_statement", "net_profit") / ((get_val(curr_data, "balance_sheet", "total_assets") + get_val(prev_data, "balance_sheet", "total_assets"))/2)
+                prev_roa = 0 # Limitation without 3 periods. We assume flat previous or 0? 
+                # Better: Use available data. If i > 1, calculate prev_roa.
+                if i > 1:
+                   prev_prev = sorted_periods[i-2]
+                   prev_prev_data = statements_by_period[prev_prev]
+                   prev_avg_assets = (get_val(prev_data, "balance_sheet", "total_assets") + get_val(prev_prev_data, "balance_sheet", "total_assets")) / 2
+                   prev_roa = get_val(prev_data, "income_statement", "net_profit") / prev_avg_assets
+                else:
+                   prev_roa = curr_roa # Fallback to 0 change
+                
+                chg_roa = curr_roa - prev_roa
+                
+                # Issuance of Stock
+                # Check specific field or Change in Equity not explained by Net Income
+                 # Actual = 1 if stock issued, 0 otherwise. Proxy: Check if Common Stock increased?
+                stock_issued = 1 if (get_val(curr_data, "balance_sheet", "common_stock") > get_val(prev_data, "balance_sheet", "common_stock")) else 0
+                
+                # RSST Accruals (Richardson, Sloan, Soliman, Tuna 2005)
+                # RSST = (WC + NCO + FIN) / Avg Assets
+                # WC = Current Assets - Cash - (Current Liabilities - ST Debt)
+                wc_curr = (get_val(curr_data, "balance_sheet", "current_assets") - curr_cash) - (get_val(curr_data, "balance_sheet", "current_liabilities") - get_val(curr_data, "balance_sheet", "short_term_debt"))
+                nco_curr = (curr_assets - get_val(curr_data, "balance_sheet", "current_assets") - get_val(curr_data, "balance_sheet", "investments")) - (get_val(curr_data, "balance_sheet", "total_liabilities") - get_val(curr_data, "balance_sheet", "current_liabilities") - get_val(curr_data, "balance_sheet", "long_term_debt"))
+                fin_curr = (get_val(curr_data, "balance_sheet", "short_term_investments") + get_val(curr_data, "balance_sheet", "investments")) - (get_val(curr_data, "balance_sheet", "short_term_debt") + get_val(curr_data, "balance_sheet", "long_term_debt"))
+                
+                rsst_accruals = (wc_curr + nco_curr + fin_curr) / avg_assets
+
+                # Calculate Score
+                pred_val = -7.893 + (0.790 * rsst_accruals) + (2.518 * chg_rec) + (1.191 * chg_inv) + (1.979 * soft_assets) + (0.171 * chg_cash_sales) + (-0.932 * chg_roa) + (1.029 * stock_issued)
+                
+                prob = 1 / (1 + math.exp(-pred_val))
+                
+                # Risk Level
+                # F-Score > 1.0 (some papers normalize differently). 
+                # Probability > 0.0037 is average misstatement rate. 
+                # Prob > 1% (0.01) is High Risk, > 0.4% is elevated.
+                
+                risk_level = "LOW"
+                if prob > 0.02: # > 2% probability of material misstatement
+                     risk_level = "HIGH"
+                elif prob > 0.01:
+                     risk_level = "MEDIUM"
+                
+                f_score_results[curr_period] = {
+                    "f_score": round(prob, 5),
+                    "predicted_value": round(pred_val, 3),
+                    "risk_level": risk_level,
+                    "components": {
+                        "rsst_accruals": round(rsst_accruals, 3),
+                        "chg_receivables": round(chg_rec, 3),
+                        "chg_inventory": round(chg_inv, 3),
+                        "soft_assets": round(soft_assets, 3),
+                        "chg_cash_sales": round(chg_cash_sales, 3),
+                        "chg_roa": round(chg_roa, 3),
+                        "stock_issued": stock_issued
+                    }
+                }
+
+            return {
+                "success": True,
+                "dechow_f_score": f_score_results,
+                "analysis_date": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Dechow F-Score calculation failed: {e}")
+            return {"success": False, "error": str(e)}
     
     def calculate_beneish_m_score(self, current_period: Dict[str, Any], 
                                  previous_period: Dict[str, Any]) -> Dict[str, Any]:
@@ -1285,6 +1542,14 @@ class ForensicAnalysisAgent:
             # Financial Ratios
             ratios_result = self.calculate_financial_ratios(financial_statements)
             results["financial_ratios"] = ratios_result
+
+            # Sloan Ratio
+            sloan_result = self.calculate_sloan_ratio(financial_statements)
+            results["sloan_ratio"] = sloan_result
+
+            # Dechow F-Score
+            f_score_result = self.calculate_dechow_f_score(financial_statements)
+            results["dechow_f_score"] = f_score_result
             
             # Benford's Law Analysis
             benford_result = self.benford_analysis(financial_statements)

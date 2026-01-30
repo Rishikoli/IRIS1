@@ -1,0 +1,313 @@
+"use client";
+
+import React, { useEffect, useRef } from 'react';
+import * as d3 from 'd3';
+
+interface DechowFScoreChartProps {
+    data: any;
+}
+
+export default function DechowFScoreChart({ data }: DechowFScoreChartProps) {
+    const chartRef = useRef<SVGSVGElement>(null);
+    const trendRef = useRef<SVGSVGElement>(null);
+
+    // Normalize data structure
+    const fScoreData = data?.dechow_f_score || data || {};
+
+    // Convert object to array for trend analysis and sort by date
+    const history = Object.entries(fScoreData)
+        .map(([date, details]: [string, any]) => ({
+            period: date,
+            ...details
+        }))
+        .sort((a, b) => new Date(a.period).getTime() - new Date(b.period).getTime());
+
+    // Get latest period data
+    const latestData = history.length > 0 ? history[history.length - 1] : null;
+    const probability = latestData ? latestData.f_score : 0; // 0 to 1
+    const probPct = probability * 100;
+
+    // Variables for display
+    const components = latestData ? latestData.components : {};
+
+    useEffect(() => {
+        if (chartRef.current) {
+            drawGaugeChart();
+        }
+    }, [data, probability]);
+
+    useEffect(() => {
+        if (trendRef.current && history.length > 1) {
+            drawTrendChart();
+        }
+    }, [history]);
+
+    const drawGaugeChart = () => {
+        if (!chartRef.current) return;
+        d3.select(chartRef.current).selectAll("*").remove();
+
+        const margin = { top: 40, right: 40, bottom: 60, left: 40 };
+        const width = 800 - margin.left - margin.right;
+        const height = 180 - margin.top - margin.bottom;
+
+        const svg = d3.select(chartRef.current)
+            .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        // Define Zones
+        // F-Score output is probability. 
+        // Normal rates are very low (< 0.4%). High risk is > 1.0%.
+        // Visualization range: 0% to 3%
+        const xScale = d3.scaleLinear()
+            .domain([0, 3])
+            .range([0, width]);
+
+        // Risk Zones
+        const zones = [
+            { min: 0, max: 0.4, color: "#10B981", label: "Low Risk (< 0.4%)" },        // Green
+            { min: 0.4, max: 1.0, color: "#F59E0B", label: "Elevated Risk" },    // Yellow
+            { min: 1.0, max: 3.0, color: "#EF4444", label: "High Risk (> 1.0%)" }        // Red
+        ];
+
+        // Draw Zones
+        svg.selectAll("rect.zone")
+            .data(zones)
+            .enter()
+            .append("rect")
+            .attr("x", d => xScale(d.min))
+            .attr("y", 0)
+            .attr("width", d => xScale(d.max) - xScale(d.min))
+            .attr("height", height)
+            .attr("fill", d => d.color)
+            .attr("rx", 4)
+            .attr("opacity", 0.2);
+
+        // Zone Labels
+        svg.selectAll("text.label")
+            .data(zones)
+            .enter()
+            .append("text")
+            .attr("x", d => xScale(d.min) + (xScale(d.max) - xScale(d.min)) / 2)
+            .attr("y", -10)
+            .attr("text-anchor", "middle")
+            .style("font-size", "12px")
+            .style("font-weight", "bold")
+            .style("fill", d => d.color)
+            .text(d => d.label);
+
+        // Current Score Marker
+        const clampedScore = Math.min(3, Math.max(0, probPct));
+        const xPos = xScale(clampedScore);
+
+        // Line
+        svg.append("line")
+            .attr("x1", xPos)
+            .attr("x2", xPos)
+            .attr("y1", -5)
+            .attr("y2", height + 5)
+            .style("stroke", "#1E293B")
+            .style("stroke-width", 3);
+
+        // Circle
+        svg.append("circle")
+            .attr("cx", xPos)
+            .attr("cy", height / 2)
+            .attr("r", 8)
+            .style("fill", "#1E293B")
+            .style("stroke", "#fff")
+            .style("stroke-width", 2);
+
+        // Score Text
+        svg.append("text")
+            .attr("x", xPos)
+            .attr("y", height + 30)
+            .attr("text-anchor", "middle")
+            .style("font-size", "16px")
+            .style("font-weight", "bold")
+            .style("fill", "#1E293B")
+            .text(`${probPct.toFixed(2)}%`);
+    };
+
+    const drawTrendChart = () => {
+        if (!trendRef.current || history.length < 2) return;
+        d3.select(trendRef.current).selectAll("*").remove();
+
+        const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+        const width = 500 - margin.left - margin.right;
+        const height = 250 - margin.top - margin.bottom;
+
+        const svg = d3.select(trendRef.current)
+            .attr("viewBox", `0 0 ${width + margin.left + margin.right} ${height + margin.top + margin.bottom}`)
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const parseTime = d3.timeParse("%Y-%m-%d");
+        const trendData = history.map((d: any) => ({
+            date: parseTime(d.period) || new Date(d.period),
+            value: Number(d.f_score * 100) // Convert to percentage
+        }));
+
+        const x = d3.scaleTime()
+            .domain(d3.extent(trendData, (d: any) => d.date) as [Date, Date])
+            .range([0, width]);
+
+        const yValMax = d3.max(trendData, (d: any) => d.value) as number;
+        const y = d3.scaleLinear()
+            .domain([0, Math.max(2, yValMax)])
+            .range([height, 0]);
+
+        // Grid lines
+        svg.append("g")
+            .attr("class", "grid")
+            .attr("opacity", 0.1)
+            .call(d3.axisLeft(y).tickSize(-width).tickFormat(() => ""));
+
+        // Axes
+        svg.append("g")
+            .attr("transform", `translate(0,${height})`)
+            .call(d3.axisBottom(x).ticks(5))
+            .style("font-size", "11px");
+
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .style("font-size", "11px");
+
+        // Threshold Line (1%)
+        const thresholdY = y(1.0);
+        if (thresholdY >= 0 && thresholdY <= height) {
+            svg.append("line")
+                .attr("x1", 0)
+                .attr("x2", width)
+                .attr("y1", thresholdY)
+                .attr("y2", thresholdY)
+                .attr("stroke", "#EF4444")
+                .attr("stroke-width", 1)
+                .attr("stroke-dasharray", "4,4");
+
+            svg.append("text")
+                .attr("x", width - 5)
+                .attr("y", thresholdY - 5)
+                .attr("text-anchor", "end")
+                .style("font-size", "10px")
+                .style("fill", "#EF4444")
+                .text("High Risk (1.0%)");
+        }
+
+        // Line
+        const line = d3.line<any>()
+            .x(d => x(d.date))
+            .y(d => y(d.value))
+            .curve(d3.curveMonotoneX);
+
+        svg.append("path")
+            .datum(trendData)
+            .attr("fill", "none")
+            .attr("stroke", "#3b82f6")
+            .attr("stroke-width", 2)
+            .attr("d", line);
+
+        // Dots
+        svg.selectAll(".dot")
+            .data(trendData)
+            .enter()
+            .append("circle")
+            .attr("cx", (d: any) => x(d.date))
+            .attr("cy", (d: any) => y(d.value))
+            .attr("r", 4)
+            .attr("fill", "#fff")
+            .attr("stroke", "#3b82f6")
+            .attr("stroke-width", 2);
+    };
+
+    const riskColor = probPct > 1.0 ? '#EF4444' : (probPct > 0.4 ? '#F59E0B' : '#10B981');
+    const riskLabel = probPct > 1.0 ? 'HIGH RISK' : (probPct > 0.4 ? 'ELEVATED RISK' : 'LOW RISK');
+    const riskDesc = probPct > 1.0 ? 'High probability of material misstatement' : 'Financial statements appear standard';
+
+    // Mapping for clear display names
+    const componentLabels: any = {
+        "rsst_accruals": "RSST Accruals",
+        "chg_receivables": "Change in Receivables",
+        "chg_inventory": "Change in Inventory",
+        "soft_assets": "Soft Assets Ratio",
+        "chg_cash_sales": "Change in Cash Sales",
+        "chg_roa": "Change in ROA",
+        "stock_issued": "Stock Issuance"
+    };
+
+    return (
+        <div className="w-full space-y-8">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-slate-800">Dechow F-Score Analysis</h3>
+                    <p className="text-slate-500">
+                        Predicts the probability of material misstatement in financial statements.
+                    </p>
+                </div>
+                <div className={`px-6 py-3 rounded-2xl border-2 flex flex-col items-center min-w-[180px]`}
+                    style={{ borderColor: riskColor, backgroundColor: `${riskColor}10` }}>
+                    <span className="text-3xl font-bold" style={{ color: riskColor }}>{probPct.toFixed(2)}%</span>
+                    <span className="text-sm font-bold tracking-wider" style={{ color: riskColor }}>Prob.</span>
+                </div>
+            </div>
+
+            {/* Main Gauge Chart */}
+            <div className="neumorphic-card rounded-3xl p-6 bg-white/50">
+                <svg ref={chartRef} className="w-full h-auto max-h-[220px]"></svg>
+                <div className="text-center mt-2 text-slate-600 italic text-sm">
+                    Risk Assessment: {riskLabel} - {riskDesc}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Component Breakdown Table */}
+                <div className="neumorphic-card rounded-2xl p-6">
+                    <h4 className="text-lg font-bold text-slate-700 mb-4">Model Components</h4>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-50 text-slate-500 font-medium">
+                                <tr>
+                                    <th className="p-3 rounded-l-lg">Component</th>
+                                    <th className="p-3 text-right rounded-r-lg">Coefficient Value</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {components && Object.entries(components).map(([key, rawVal]: [string, any]) => {
+                                    const val = Number(rawVal);
+                                    return (
+                                        <tr key={key} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="p-3 font-semibold text-slate-700">{componentLabels[key] || key}</td>
+                                            <td className="p-3 text-right font-mono font-bold text-slate-700">
+                                                {val.toFixed(3)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="mt-4 p-4 bg-slate-50 rounded-xl text-xs text-slate-500">
+                        <strong>Note:</strong> Higher values for Accruals, Receivables, Inventory, and Soft Assets generally increase risk.
+                    </div>
+                </div>
+
+                {/* Historical Trend */}
+                <div className="neumorphic-card rounded-2xl p-6 flex flex-col">
+                    <h4 className="text-lg font-bold text-slate-700 mb-4">Probability Trend</h4>
+                    <div className="flex-1 flex items-center justify-center min-h-[250px]">
+                        {history.length > 1 ? (
+                            <svg ref={trendRef} className="w-full h-full"></svg>
+                        ) : (
+                            <div className="text-slate-400 text-center">
+                                <span className="text-4xl block mb-2">📉</span>
+                                Insufficient data for trend analysis<br />
+                                (Need at least 2 comparison periods)
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

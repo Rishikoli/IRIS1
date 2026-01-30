@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     gemini_api_key_3: Optional[str] = Field(default=None, env="GEMINI_API_KEY_3")
     gemini_api_key_4: Optional[str] = Field(default=None, env="GEMINI_API_KEY_4")
     gemini_api_key_5: Optional[str] = Field(default=None, env="GEMINI_API_KEY_5")
-    gemini_model_name: str = Field(default="gemini-2.5-flash", env="GEMINI_MODEL_NAME")
+    gemini_model_name: str = Field(default="gemini-3-flash-preview", env="GEMINI_MODEL_NAME")
     nse_api_key: Optional[str] = Field(default=None, env="NSE_API_KEY")
     bse_api_key: Optional[str] = Field(default=None, env="BSE_API_KEY")
     

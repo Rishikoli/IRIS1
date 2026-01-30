@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import axios from 'axios';
 
 import SentimentSection from './SentimentSection';
+import MarketSentinelSection from './MarketSentinelSection';
+import NetworkGraph from './NetworkGraph';
 
 // Dynamically import D3 components to avoid SSR issues
 const FinancialRatiosChart = dynamic(() => import('@/components/charts/FinancialRatiosChart'), { ssr: false });
@@ -11,11 +14,9 @@ const HorizontalAnalysisChart = dynamic(() => import('@/components/charts/Horizo
 const BenfordChart = dynamic(() => import('@/components/charts/BenfordChart'), { ssr: false });
 const ZScoreChart = dynamic(() => import('@/components/charts/ZScoreChart'), { ssr: false });
 const MScoreChart = dynamic(() => import('@/components/charts/MScoreChart'), { ssr: false });
-
-
-
-import NetworkGraph from './NetworkGraph';
-import axios from 'axios';
+const SloanRatioChart = dynamic(() => import('@/components/charts/SloanRatioChart'), { ssr: false });
+const DechowFScoreChart = dynamic(() => import('@/components/charts/DechowFScoreChart'), { ssr: false });
+const RiskExplainabilityChart = dynamic(() => import('@/components/charts/RiskExplainabilityChart'), { ssr: false });
 
 interface ForensicSectionProps {
   analysisData: any;
@@ -26,8 +27,6 @@ interface ForensicSectionProps {
 
 export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false }: ForensicSectionProps) {
   const [activeSubTab, setActiveSubTab] = useState('network');
-
-
   const [networkData, setNetworkData] = useState<any>(null);
   const [isNetworkLoading, setIsNetworkLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -54,8 +53,6 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
         const downloadUrl = exportInfo.download_url;
 
         // 2. Trigger Download
-        // Use the backend URL directly if it's a full URL, or append to base
-        // The backend returns /api/reports/download/{filename}
         const link = document.createElement('a');
         link.href = downloadUrl;
         link.setAttribute('download', exportInfo.filename);
@@ -90,7 +87,6 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
             timeoutPromise
           ]) as any;
 
-          console.log('Network Data Response:', response.data);
           if (response.data.success) {
             setNetworkData(response.data);
           }
@@ -110,7 +106,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
             },
             graph_data: {
               nodes: [
-                { id: analysisData.company_id, type: 'custom', data: { label: analysisData.company_id, type: 'company', risk_score: 0 }, position: { x: 500, y: 400 } }
+                { id: analysisData?.company_id || 'Company', type: 'custom', data: { label: analysisData?.company_id || 'Company', type: 'company', risk_score: 0 }, position: { x: 500, y: 400 } }
               ],
               edges: []
             }
@@ -119,7 +115,10 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
           setIsNetworkLoading(false);
         }
       };
-      fetchNetworkData();
+
+      if (analysisData?.company_id) {
+        fetchNetworkData();
+      }
     }
   }, [networkData, analysisData?.company_id]);
 
@@ -147,23 +146,26 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
     );
   }
 
-  const RiskExplainabilityChart = dynamic(() => import('@/components/charts/RiskExplainabilityChart'), { ssr: false });
-
   const subTabs = [
     { id: 'network', label: 'RPT Network', icon: '🕸️' },
+    { id: 'sentinel', label: 'Market Sentinel', icon: '🚨' }, // New Tab
+    { id: 'sentiment', label: 'News Sentiment', icon: '📰' },
     { id: 'risk_explainability', label: 'Risk Explainability', icon: '📉' },
-    { id: 'sentiment', label: 'Market Sentiment', icon: '📈' },
 
     { id: 'ratios', label: 'Financial Ratios', icon: '🔢' },
     { id: 'benford', label: 'Benford\'s Law', icon: '📊' },
     { id: 'zscore', label: 'Altman Z-Score', icon: '⚖️' },
-    { id: 'mscore', label: 'Beneish M-Score', icon: '🔍' }
+    { id: 'mscore', label: 'Beneish M-Score', icon: '🔍' },
+    { id: 'sloan', label: 'Sloan Ratio', icon: '💰' },
+    { id: 'fscore', label: 'Dechow F-Score', icon: '🚩' }
   ];
 
   const renderContent = () => {
     switch (activeSubTab) {
       case 'network':
         return <NetworkGraph data={networkData?.graph_data} cycles={networkData?.cycles} isLoading={isNetworkLoading} />;
+      case 'sentinel': // New Case
+        return <MarketSentinelSection companySymbol={analysisData?.company_id} />;
       case 'risk_explainability':
         return (
           <div className="space-y-4">
@@ -186,13 +188,16 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
         return <HorizontalAnalysisChart data={analysisData.horizontal_analysis} />;
       case 'ratios':
         return <FinancialRatiosChart data={analysisData.financial_ratios} />;
-
       case 'benford':
         return <BenfordChart data={analysisData.benford_analysis} />;
       case 'zscore':
         return <ZScoreChart data={analysisData.altman_z_score} />;
       case 'mscore':
         return <MScoreChart data={analysisData.beneish_m_score} />;
+      case 'sloan':
+        return <SloanRatioChart data={analysisData.sloan_ratio} />;
+      case 'fscore':
+        return <DechowFScoreChart data={analysisData.dechow_f_score} />;
       default:
         return <NetworkGraph data={networkData?.graph_data} cycles={networkData?.cycles} isLoading={isNetworkLoading} />;
     }
@@ -216,6 +221,13 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
             <div className="w-3 h-3 rounded-full bg-green-500"></div>
             <span className="text-sm font-semibold" style={{ color: '#1e293b' }}>29 Metrics Analyzed</span>
           </div>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={isExporting}
+            className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isExporting ? 'Exporting...' : 'Export PDF'}
+          </button>
         </div>
       </div>
 
@@ -273,5 +285,3 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
     </div>
   );
 }
-
-

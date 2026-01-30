@@ -45,6 +45,33 @@ const ForensicFormulasModal: React.FC<ForensicFormulasModalProps> = ({ isOpen, o
             color: "text-purple-500"
         },
         {
+            title: "Sloan Ratio",
+            description: "Detects if earnings are backed by cash flow.",
+            formula: "Sloan Ratio = (Net Income - Operating Cash Flow) / Total Assets",
+            value: analysisData?.sloan_ratio?.sloan_analysis ?
+                (Object.values(analysisData.sloan_ratio.sloan_analysis).sort((a: any, b: any) => new Date(a.period).getTime() - new Date(b.period).getTime()).pop() as any)?.['sloan_ratio_pct'] + "%"
+                : "N/A",
+            variables: [
+                "Net Income",
+                "Operating Cash Flow",
+                "Total Assets"
+            ],
+            color: "text-amber-600"
+        },
+        {
+            title: "Dechow F-Score",
+            description: "Predicts probability of financial misstatement.",
+            formula: "Prob = 1 / (1 + e^(-Pred_Val))",
+            value: analysisData?.dechow_f_score?.dechow_f_score ?
+                (Object.values(analysisData.dechow_f_score.dechow_f_score).sort((a: any, b: any) => new Date(a.period).getTime() - new Date(b.period).getTime()).pop() as any)?.['f_score']?.toFixed(4)
+                : "N/A",
+            variables: [
+                "RSST Accruals", "Change in Receivables", "Change in Inventory",
+                "Soft Assets", "Change in Cash Sales", "Change in ROA", "Stock Issuance"
+            ],
+            color: "text-red-500"
+        },
+        {
             title: "Debt to Equity Ratio",
             description: "Measures financial leverage.",
             formula: "D/E = Total Liabilities / Shareholders' Equity",

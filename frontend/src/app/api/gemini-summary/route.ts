@@ -65,7 +65,7 @@ Write in professional, advisory tone. Use HTML tags: <strong> for key metrics, <
     for (const key of keys) {
       try {
         const genAI = new GoogleGenerativeAI(key || '');
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
         const result = await model.generateContent(prompt);
         const response = await result.response;

@@ -305,7 +305,7 @@ class AuditorAgent:
         """Compare Management Narrative (MDA) against Hard Financial Numbers"""
         try:
             # We use the centralized rate limiter here (if available) or direct call
-            # To stay consistent with previous restriction to gemini-2.5-flash
+            # To stay consistent with previous restriction to gemini-2.0-flash
             
             prompt = f"""
             You are a Senior Forensic Auditor. I have extracted the Management Discussion & Analysis (MDA) section from '{company}''s Annual Report.

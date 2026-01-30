@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 from src.agents.agent8_market_sentiment import market_sentiment_agent
+from src.agents.agent8_market_sentinel import market_sentinel_agent
 import logging
 import os
 import sys
@@ -31,6 +32,10 @@ logger = logging.getLogger(__name__)
 
 class SentimentRequest(BaseModel):
     """Request model for Agent 8 sentiment analysis"""
+    company_symbol: str
+
+class MarketSentinelRequest(BaseModel):
+    """Request model for Agent 8 technical analysis (Market Sentinel)"""
     company_symbol: str
 
 class NewsArticleResponse(BaseModel):
@@ -112,6 +117,44 @@ async def analyze_sentiment(request: SentimentRequest):
                 "overall_sentiment": "Neutral",
                 "trends": {"status": "error", "data": []},
                 "news_sentiment": {"status": "error", "sentiment": "neutral"}
+            }
+        }
+
+# ============================================================================
+# Agent 8 Market Sentinel Endpoint (Technical / Pump & Dump)
+# ============================================================================
+
+@router.post("/technical/analyze", response_model=Dict[str, Any])
+async def analyze_technical(request: MarketSentinelRequest):
+    """
+    Analyze market technicals for a company using Price/Volume data
+    (Agent 8 Market Sentinel - Pump & Dump Detection)
+    """
+    try:
+        logger.info(f"Technical analysis request for: {request.company_symbol}")
+        
+        if not request.company_symbol.strip():
+            raise HTTPException(status_code=400, detail="Company symbol cannot be empty")
+
+        result = market_sentinel_agent.analyze_stock(request.company_symbol)
+        
+        if not result.get("success"):
+             logger.warning(f"Technical analysis failed: {result.get('error')}")
+        
+        return {
+            "success": True,
+            "data": result
+        }
+
+    except Exception as e:
+        logger.error(f"Error in technical endpoint: {str(e)}")
+        return {
+            "success": False,
+            "data": {
+                "symbol": request.company_symbol,
+                "error": str(e),
+                "risk_level": "UNKNOWN",
+                "signals": []
             }
         }
 

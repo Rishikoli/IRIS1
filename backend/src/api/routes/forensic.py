@@ -216,12 +216,13 @@ async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
                 # Get financial statements
                 income_stmt = ticker.financials
                 balance_sheet = ticker.balance_sheet
+                cash_flow = ticker.cashflow
 
                 # Check if we got valid data
                 if (income_stmt is not None and len(income_stmt.columns) > 0 and
                     balance_sheet is not None and len(balance_sheet.columns) > 0):
 
-                    logger.info(f"✅ Found data for {symbol_format}: Income={income_stmt.shape}, Balance={balance_sheet.shape}")
+                    logger.info(f"✅ Found data for {symbol_format}: Income={income_stmt.shape}, Balance={balance_sheet.shape}, Cash={cash_flow.shape if cash_flow is not None else 'None'}")
 
                     # Process income statements (latest 3 years)
                     for i in range(min(3, len(income_stmt.columns))):
@@ -244,6 +245,18 @@ async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
                             'period_end': str(balance_sheet.columns[i].date()),
                             'data': stmt_data
                         })
+
+                    # Process cash flow statements (latest 3 years)
+                    if cash_flow is not None:
+                        for i in range(min(3, len(cash_flow.columns))):
+                            stmt_data = cash_flow.iloc[:, i].to_dict()
+                            stmt_data['date'] = str(cash_flow.columns[i].date())
+
+                            financial_statements.append({
+                                'statement_type': 'cash_flow_statement',
+                                'period_end': str(cash_flow.columns[i].date()),
+                                'data': stmt_data
+                            })
 
                     # Success! We found working data
                     logger.info(f"✅ Successfully fetched real data for {company_symbol} using {symbol_format}")
@@ -404,7 +417,8 @@ async def run_forensic_analysis_api(company_symbol: str):
         # Add analysis results from the actual forensic agents
         analysis_types = [
             'vertical_analysis', 'horizontal_analysis', 'financial_ratios',
-            'benford_analysis', 'anomaly_detection', 'altman_z_score', 'beneish_m_score'
+            'benford_analysis', 'anomaly_detection', 'altman_z_score', 'beneish_m_score',
+            'sloan_ratio', 'dechow_f_score'
         ]
 
         for analysis_type in analysis_types:
