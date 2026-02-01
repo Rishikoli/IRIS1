@@ -120,9 +120,9 @@ async def get_data_source_info(company_symbol: str):
             status = "✅ Real data available"
             message = f"Real financial data found for {company_symbol} on Yahoo Finance"
         else:
-            data_source = "enhanced_mock_data"
-            status = "⚠️ No real data found"
-            message = f"No real data available for {company_symbol}, would use mock data"
+            data_source = "none"
+            status = "❌ No real data found"
+            message = f"No real data available for {company_symbol}. Please check the ticker symbol."
 
         return {
             "company_symbol": company_symbol,
@@ -158,11 +158,10 @@ async def ingest_company_data(company_symbol: str):
             data_source = "yahoo_finance"
             message = f"Successfully ingested real financial data for {company_symbol} from Yahoo Finance"
         else:
-            # Fallback to enhanced mock data for testing
-            logger.warning(f"⚠️ No real data found for {company_symbol}, using enhanced mock data for testing")
-            financial_statements = _create_enhanced_mock_data(company_symbol)
-            data_source = "enhanced_mock_data"
-            message = f"Using enhanced mock data for {company_symbol} (no real data available)"
+            # Fallback removed - strictly real data only
+            logger.warning(f"⚠️ No real data found for {company_symbol}")
+            data_source = "none"
+            message = f"No data found for {company_symbol}"
 
         if not financial_statements:
             raise HTTPException(
@@ -273,94 +272,6 @@ async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
     except Exception as e:
         logger.error(f"Error fetching Yahoo Finance data for {company_symbol}: {e}")
         return []
-
-
-def _create_enhanced_mock_data(company_symbol: str) -> list:
-    """Create enhanced mock financial data with realistic values for different companies"""
-    financial_statements = []
-
-    # Company-specific base values for more realistic data
-    company_configs = {
-        'RELIANCE': {
-            'revenue_base': 8000000000,    # 8B revenue
-            'asset_base': 15000000000,     # 15B assets
-            'revenue_growth': 0.12,        # 12% growth
-            'margin': 0.25                 # 25% net margin
-        },
-        'TCS': {
-            'revenue_base': 2500000000,    # 2.5B revenue
-            'asset_base': 4000000000,      # 4B assets
-            'revenue_growth': 0.15,        # 15% growth
-            'margin': 0.22                 # 22% net margin
-        },
-        'INFY': {
-            'revenue_base': 1800000000,    # 1.8B revenue
-            'asset_base': 2500000000,      # 2.5B assets
-            'revenue_growth': 0.10,        # 10% growth
-            'margin': 0.20                 # 20% net margin
-        },
-        'HIGHRISK': {
-            'revenue_base': 500000000,     # 500M revenue
-            'asset_base': 2000000000,      # 2B assets (Higher base to lower turnover)
-            'revenue_growth': 0.50,        # 50% "growth" in past means current is lower (Decline)
-            'margin': -0.50,               # -50% net margin (Huge loss)
-            'liability_ratio': 0.95        # 95% liabilities (Extreme leverage)
-        }
-    }
-
-    config = company_configs.get(company_symbol, company_configs['RELIANCE'])
-    base_year = 2024
-
-    for year_offset in range(3):
-        year = base_year - year_offset
-
-        # Calculate growth factors
-        revenue_growth = 1.0 + (config['revenue_growth'] * year_offset)
-        asset_growth = 1.0 + (config['revenue_growth'] * 0.8 * year_offset)  # Assets grow slower
-
-        # Income Statement
-        base_revenue = config['revenue_base']
-        stmt_data = {
-            'Total Revenue': int(base_revenue * revenue_growth),
-            'Cost of Revenue': int((base_revenue * revenue_growth) * (1 - config['margin'] * 1.2)),  # COGS
-            'Gross Profit': int((base_revenue * revenue_growth) * config['margin'] * 1.2),           # Gross margin
-            'Operating Expenses': int((base_revenue * revenue_growth) * config['margin'] * 0.6),    # OPEX
-            'Operating Income': int((base_revenue * revenue_growth) * config['margin']),           # Operating margin
-            'Net Income': int((base_revenue * revenue_growth) * config['margin']),                # Net margin
-            'date': f"{year}-12-31"
-        }
-
-        financial_statements.append({
-            'statement_type': 'income_statement',
-            'period_end': f"{year}-12-31",
-            'data': stmt_data
-        })
-
-        # Balance Sheet
-        base_assets = config['asset_base']
-        liability_ratio = config.get('liability_ratio', 0.65)
-        
-        stmt_data = {
-            'Total Assets': int(base_assets * asset_growth),
-            'Total Current Assets': int((base_assets * asset_growth) * 0.35),     # 35% current assets
-            'Cash and Cash Equivalents': int((base_assets * asset_growth) * 0.05), # 5% cash (Low liquidity)
-            'Accounts Receivable': int((base_assets * asset_growth) * 0.15),      # 15% receivables
-            'Inventory': int((base_assets * asset_growth) * 0.08),               # 8% inventory
-            'Total Liabilities': int((base_assets * asset_growth) * liability_ratio),       # Custom liabilities
-            'Total Current Liabilities': int((base_assets * asset_growth) * (liability_ratio * 0.4)), # 40% of liab are current
-            'Short Term Debt': int((base_assets * asset_growth) * (liability_ratio * 0.3)),         # 30% of liab are short term debt
-            'Long Term Debt': int((base_assets * asset_growth) * (liability_ratio * 0.6)),          # 60% of liab are long-term
-            'Total Equity': int((base_assets * asset_growth) * (1 - liability_ratio)),            # Remaining is equity
-            'date': f"{year}-12-31"
-        }
-
-        financial_statements.append({
-            'statement_type': 'balance_sheet',
-            'period_end': f"{year}-12-31",
-            'data': stmt_data
-        })
-
-    return financial_statements
 
 
 @forensic_router.post("/{company_symbol}")
@@ -515,9 +426,9 @@ async def calculate_risk_score_api(company_symbol: str):
         try:
             ingestion_result = await ingest_company_data(company_symbol)
             financial_statements = ingestion_result["financial_statements"]
-        except Exception:
-            # Fallback to mock data if ingestion fails
-            financial_statements = _create_enhanced_mock_data(company_symbol)
+        except Exception as e:
+            logger.error(f"Ingestion check failed: {e}")
+            financial_statements = []
 
         if not financial_statements:
             raise HTTPException(
@@ -529,18 +440,10 @@ async def calculate_risk_score_api(company_symbol: str):
         forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
 
         if not forensic_result['success']:
-            # Fallback to mock risk assessment
-            return {
-                "success": True,
-                "company_id": company_symbol,
-                "risk_score": {
-                    "overall_score": 45,
-                    "risk_level": "MEDIUM",
-                    "confidence_score": 0.6,
-                    "risk_factors": ["Insufficient data for detailed risk analysis"],
-                    "analysis_timestamp": datetime.utcnow().isoformat()
-                }
-            }
+            raise HTTPException(
+                status_code=404,
+                detail=f"Forensic analysis failed: {forensic_result.get('error')}"
+            )
 
         # Calculate risk score using Agent 3
         risk_assessment = risk_agent.calculate_risk_score(company_symbol, forensic_result)
@@ -586,9 +489,9 @@ async def validate_compliance_api(company_symbol: str):
         try:
             ingestion_result = await ingest_company_data(company_symbol)
             financial_statements = ingestion_result["financial_statements"]
-        except Exception:
-            # Fallback to mock data if ingestion fails
-            financial_statements = _create_enhanced_mock_data(company_symbol)
+        except Exception as e:
+            logger.error(f"Ingestion check failed: {e}")
+            financial_statements = []
 
         if not financial_statements:
             raise HTTPException(
@@ -600,20 +503,10 @@ async def validate_compliance_api(company_symbol: str):
         forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
 
         if not forensic_result['success']:
-            # Fallback to basic compliance assessment
-            return {
-                "success": True,
-                "company_id": company_symbol,
-                "compliance_assessment": {
-                    "overall_compliance_score": 70,
-                    "compliance_status": "PARTIAL_COMPLIANCE",
-                    "violations": ["Insufficient data for detailed compliance analysis"],
-                    "framework_scores": {},
-                    "recommendations": ["Ensure all required financial disclosures are complete"],
-                    "next_review_date": datetime.utcnow().isoformat(),
-                    "analysis_timestamp": datetime.utcnow().isoformat()
-                }
-            }
+            raise HTTPException(
+                status_code=404,
+                detail=f"Forensic analysis failed: {forensic_result.get('error')}"
+            )
 
         # Validate compliance using Agent 4
         compliance_assessment = compliance_agent.validate_compliance(company_symbol, forensic_result)
@@ -639,9 +532,9 @@ async def generate_comprehensive_report_api(company_symbol: str):
         try:
             ingestion_result = await ingest_company_data(company_symbol)
             financial_statements = ingestion_result["financial_statements"]
-        except Exception:
-            # Fallback to mock data if ingestion fails
-            financial_statements = _create_enhanced_mock_data(company_symbol)
+        except Exception as e:
+            logger.error(f"Ingestion check failed: {e}")
+            financial_statements = []
 
         if not financial_statements:
             raise HTTPException(
@@ -762,9 +655,9 @@ async def calculate_risk_score_standalone(company_symbol: str):
         try:
             ingestion_result = await ingest_company_data(company_symbol)
             financial_statements = ingestion_result["financial_statements"]
-        except Exception:
-            # Fallback to mock data if ingestion fails
-            financial_statements = _create_enhanced_mock_data(company_symbol)
+        except Exception as e:
+            logger.error(f"Ingestion check failed: {e}")
+            financial_statements = []
 
         if not financial_statements:
             raise HTTPException(

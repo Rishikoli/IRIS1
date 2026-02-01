@@ -19,7 +19,7 @@ async def get_forensic_graph(company_symbol: str):
         logger.info(f"Generating forensic graph for {company_symbol}")
         
         # Generate the graph data
-        graph_data = graph_analyzer.generate_mock_network(company_symbol)
+        graph_data = graph_analyzer.generate_network(company_symbol)
         
         # Run analysis algorithms
         cycles = graph_analyzer.detect_circular_trading(graph_data)

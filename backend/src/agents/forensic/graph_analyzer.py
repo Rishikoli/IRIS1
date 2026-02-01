@@ -6,56 +6,107 @@ Detects shell companies, circular trading, and high-risk network patterns.
 import networkx as nx
 import logging
 from typing import Dict, List, Any, Set
-from faker import Faker
 import random
 
 logger = logging.getLogger(__name__)
 
 class GraphAnalyzer:
     def __init__(self):
-        self.fake = Faker()
         logger.info("GraphAnalyzer initialized")
 
-    def generate_mock_network(self, center_node: str = "HIGHRISK") -> Dict[str, Any]:
+    def generate_network(self, company_symbol: str) -> Dict[str, Any]:
         """
-        Generates a realistic "Web of Lies" network centered around a target company.
-        Includes planted circular trading loops and shell companies.
+        Generates a network graph for a specific company.
+        Attempts to fetch real major shareholders to build the graph.
+        Falls back to a minimal graph if no data found.
         """
-        G = nx.DiGraph()
-        
-        # 1. Create the center node
-        G.add_node(center_node, type="company", risk_score=78.5, label=center_node)
+        try:
+            import yfinance as yf
+            
+            # Handle symbol format for Indian stocks
+            symbol = company_symbol
+            if not (symbol.endswith(".NS") or symbol.endswith(".BO")):
+                symbol = f"{company_symbol}.NS"
+            
+            logger.info(f"Fetching network data for {symbol}...")
+            ticker = yf.Ticker(symbol)
+            
+            G = nx.DiGraph()
+            center_node = company_symbol
+            
+            # Add center node
+            # Determine risk score based on some basic info or default
+            risk_score = 50.0 
+            try:
+                info = ticker.info
+                if info and 'auditRisk' in info:
+                    risk_score = info['auditRisk']
+            except:
+                pass
+                
+            G.add_node(center_node, type="company", risk_score=risk_score, label=center_node)
+            
+            data_found = False
+            
+            # 1. Institutional Holders
+            try:
+                inst_holders = ticker.institutional_holders
+                if inst_holders is not None and not inst_holders.empty:
+                    data_found = True
+                    for index, row in inst_holders.iterrows():
+                        holder = row.get('Holder', 'Unknown Inst')
+                        shares = row.get('Shares', 0)
+                        
+                        G.add_node(holder, type="institution", risk_score=10.0, label=holder)
+                        G.add_edge(holder, center_node, amount=shares, type="investment")
+            except Exception as e:
+                logger.warning(f"Could not fetch institutional holders: {e}")
 
-        # 2. Create a ring of shell companies (Circular Trading Loop)
-        # HIGHRISK -> Shell A -> Shell B -> Shell C -> HIGHRISK
-        shells = ["Shell Corp A", "Shell Corp B", "Shell Corp C"]
-        
-        # Add shell nodes with high risk flags
-        for shell in shells:
-            G.add_node(shell, type="company", risk_score=90.0, label=shell, is_shell=True)
+            # 2. Mutual Fund Holders
+            try:
+                mf_holders = ticker.mutualfund_holders
+                if mf_holders is not None and not mf_holders.empty:
+                    data_found = True
+                    for index, row in mf_holders.iterrows():
+                        holder = row.get('Holder', 'Unknown MF')
+                        shares = row.get('Shares', 0)
+                        
+                        G.add_node(holder, type="fund", risk_score=5.0, label=holder)
+                        G.add_edge(holder, center_node, amount=shares, type="investment")
+            except Exception as e:
+                logger.warning(f"Could not fetch mutual fund holders: {e}")
+            
+            if not data_found:
+                logger.info("No real network data found, checking basic info...")
+                # If no holders found, try to just add sector/industry nodes from info
+                try:
+                    info = ticker.info
+                    sector = info.get('sector')
+                    industry = info.get('industry')
+                    
+                    if sector:
+                        G.add_node(sector, type="sector", risk_score=20.0, label=sector)
+                        G.add_edge(center_node, sector, type="belongs_to")
+                    if industry:
+                        G.add_node(industry, type="industry", risk_score=20.0, label=industry)
+                        G.add_edge(center_node, industry, type="belongs_to")
+                        
+                    data_found = True
+                except:
+                    pass
 
-        # Create the loop
-        G.add_edge(center_node, shells[0], amount=5000000, type="transfer")
-        G.add_edge(shells[0], shells[1], amount=4800000, type="transfer")
-        G.add_edge(shells[1], shells[2], amount=4750000, type="transfer")
-        G.add_edge(shells[2], center_node, amount=4600000, type="transfer")
+            if not data_found:
+                 # Fallback to a simple node if absolutely nothing found, but DO NOT show fake shell companies
+                logger.warning("Absolutely no data found for graph, returning single node.")
+            
+            return self._graph_to_json(G)
 
-        # 3. Add some "Ghost Directors" (Hubs)
-        director = "John Doe (Director)"
-        G.add_node(director, type="person", risk_score=60.0, label=director)
-        
-        # Connect director to multiple shells
-        G.add_edge(director, center_node, type="director")
-        G.add_edge(director, shells[0], type="director")
-        G.add_edge(director, shells[2], type="director")
-
-        # 4. Add some normal noise (Legit suppliers)
-        for i in range(3):
-            supplier = self.fake.company()
-            G.add_node(supplier, type="company", risk_score=10.0, label=supplier)
-            G.add_edge(supplier, center_node, amount=random.randint(10000, 50000), type="invoice")
-
-        return self._graph_to_json(G)
+        except Exception as e:
+            logger.error(f"Error generating real network: {e}")
+            # Fallback to minimal graph on error
+            G = nx.DiGraph()
+            G.add_node(company_symbol, type="company", label=company_symbol)
+            return self._graph_to_json(G)
 
     def detect_circular_trading(self, graph_data: Dict[str, Any]) -> List[List[str]]:
         """

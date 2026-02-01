@@ -9,7 +9,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 from src.agents.forensic.agent5_reporting import ReportingAgent, ExportFormat
-from src.api.routes.forensic import ingest_company_data, _create_enhanced_mock_data
+from src.api.routes.forensic import ingest_company_data
 from src.agents.forensic.agent2_forensic_analysis import ForensicAnalysisAgent
 from src.agents.forensic.agent3_risk_scoring import RiskScoringAgent
 from src.agents.forensic.agent4_compliance import ComplianceValidationAgent
@@ -47,9 +47,9 @@ async def generate_reports_api(request: Dict[str, Any]):
         try:
             ingestion_result = await ingest_company_data(company_symbol)
             financial_statements = ingestion_result["financial_statements"]
-        except Exception:
-            # Fallback to mock data if ingestion fails
-            financial_statements = _create_enhanced_mock_data(company_symbol)
+        except Exception as e:
+            logger.error(f"Ingestion check warning: {e}")
+            financial_statements = []
 
         if not financial_statements:
             raise HTTPException(
