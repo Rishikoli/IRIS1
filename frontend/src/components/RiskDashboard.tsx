@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { FiShield, FiAlertTriangle, FiCheck, FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
 
-import { FiShield, FiAlertTriangle, FiCheck, FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
-
 import RiskExplainabilityChart from './charts/RiskExplainabilityChart'
 import SebiRiskComposition from './charts/SebiRiskComposition'
 import SebiFlagPanel from './SebiFlagPanel'
