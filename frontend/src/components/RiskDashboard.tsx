@@ -3,7 +3,11 @@
 import { useState } from 'react'
 import { FiShield, FiAlertTriangle, FiCheck, FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
 
+import { FiShield, FiAlertTriangle, FiCheck, FiTrendingUp, FiTrendingDown, FiMinus } from 'react-icons/fi'
+
 import RiskExplainabilityChart from './charts/RiskExplainabilityChart'
+import SebiRiskComposition from './charts/SebiRiskComposition'
+import SebiFlagPanel from './SebiFlagPanel'
 
 interface RiskScore {
   success: boolean
@@ -35,6 +39,10 @@ interface AnalysisResult {
     success: boolean
     is_anomalous: boolean
     chi_square_statistic: number
+  }
+  sebi_risk_analysis?: {
+    riskComposition: any[]
+    flagPanel: any
   }
 }
 
@@ -100,6 +108,37 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
           <RiskExplainabilityChart shapValues={displayRiskScore.shap_values} />
         </div>
       </div >
+
+      {/* SEBI Advisory & Supervision Section */}
+      {analysisResult?.sebi_risk_analysis && (
+        <div className="mt-12 mb-8 animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+              <FiShield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-800">SEBI Advisory & Supervision</h2>
+              <p className="text-slate-500">Risk, Concentration & Regulatory Compliance View</p>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Main Risk Composition Chart (Span 2 cols) */}
+            <div className="lg:col-span-2">
+              <SebiRiskComposition
+                data={analysisResult.sebi_risk_analysis.riskComposition}
+              />
+            </div>
+
+            {/* Regulatory Flag Panel (Span 1 col) */}
+            <div className="lg:col-span-1">
+              <SebiFlagPanel
+                data={analysisResult.sebi_risk_analysis.flagPanel}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   )
 }

@@ -255,46 +255,6 @@ export default function AnalysisDisplay({ companySymbol, isLoading, error }: Ana
         </div>
       </div>
 
-      {/* SEBI Advisory & Supervision Section */}
-      <div className="mt-12 mb-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
-            <FiShield className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold">SEBI Advisory & Supervision</h2>
-            <p className="text-slate-400">Risk, Concentration & Regulatory Compliance View</p>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Risk Composition Chart (Span 2 cols) */}
-          <div className="lg:col-span-2">
-            <SebiRiskComposition
-              data={[
-                // Mock Data for Visualization - In real app, this comes from backend
-                { name: companySymbol, mScore: -1.5, zScore: 1.2, concentration: 15, sector: 'IT Services' },
-                { name: 'Portfolio Avg', mScore: -2.4, zScore: 3.5, concentration: 5, sector: 'Diversified' },
-                { name: 'Peer 1', mScore: -1.9, zScore: 2.1, concentration: 8, sector: 'IT Services' },
-                { name: 'Peer 2', mScore: -2.8, zScore: 4.0, concentration: 4, sector: 'IT Services' },
-              ]}
-            />
-          </div>
-
-          {/* Regulatory Flag Panel (Span 1 col) */}
-          <div className="lg:col-span-1">
-            <SebiFlagPanel
-              data={{
-                singleStockExposure: 15, // > 10% Breach
-                sectorExposure: 22,      // Safe (< 25%)
-                zScore: 1.2,             // Distress (< 1.8)
-                hasShellLinks: false,    // Safe
-                turnoverRatio: 2.4
-              }}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
