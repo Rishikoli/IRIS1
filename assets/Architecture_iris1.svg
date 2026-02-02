@@ -1,0 +1,330 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1100" style="background-color: var(--bg-canvas); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--fg-default);"/>
+    </marker>
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" style="fill: var(--fg-muted);"/>
+    </marker>
+    
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feOffset dx="0" dy="1" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.1"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    /* =========================================
+       GITHUB PRIMER THEME VARIABLES (Light) 
+       ========================================= */
+    :root {
+      /* Backgrounds & Text */
+      --bg-canvas: #ffffff;
+      --bg-subtle: #f6f8fa;
+      --fg-default: #24292f;
+      --fg-muted: #57606a;
+      --border-default: #d0d7de;
+      
+      /* Component Colors (GitHub Palette) */
+      /* Blue (Frontend) */
+      --color-blue-bg: #ddf4ff;
+      --color-blue-border: #54aeff;
+      --color-blue-fg: #0969da;
+      
+      /* Green (API) */
+      --color-green-bg: #dafbe1;
+      --color-green-border: #4ac26b;
+      --color-green-fg: #1a7f37;
+      
+      /* Orange (Orchestrator) */
+      --color-orange-bg: #fff8c5;
+      --color-orange-border: #d4a72c;
+      --color-orange-fg: #bf8700;
+      
+      /* Purple (Agents) */
+      --color-purple-bg: #fbefff;
+      --color-purple-border: #c297ff;
+      --color-purple-fg: #8250df;
+      
+      /* Packets */
+      --packet-color: #0969da;
+      --packet-agent: #8250df;
+      --packet-audit: #24292f;
+    }
+
+    /* =========================================
+       GITHUB DARK MODE
+       ========================================= */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Backgrounds & Text */
+        --bg-canvas: #0d1117;
+        --bg-subtle: #161b22;
+        --fg-default: #c9d1d9;
+        --fg-muted: #8b949e;
+        --border-default: #30363d;
+        
+        /* Component Colors (GitHub Dark Palette) */
+        /* Blue */
+        --color-blue-bg: #0d1117; /* Often transparent/dark in dark mode */
+        --color-blue-border: #388bfd; /* Accent border */
+        --color-blue-fg: #58a6ff;
+        
+        /* Green */
+        --color-green-bg: #0d1117;
+        --color-green-border: #3fb950;
+        --color-green-fg: #3fb950;
+        
+        /* Orange */
+        --color-orange-bg: #0d1117;
+        --color-orange-border: #d29922;
+        --color-orange-fg: #d29922;
+        
+        /* Purple */
+        --color-purple-bg: #0d1117;
+        --color-purple-border: #bc8cff;
+        --color-purple-fg: #bc8cff;
+        
+        /* Packets (Lighter for contrast) */
+        --packet-color: #58a6ff;
+        --packet-agent: #bc8cff;
+        --packet-audit: #c9d1d9;
+      }
+      
+      /* In dark mode, fill backgrounds are often just the canvas color + border */
+      .frontend-fill, .api-fill, .orch-fill, .agent-fill {
+        fill: #161b22 !important; /* Card background color */
+      }
+    }
+
+    /* =========================================
+       STYLES
+       ========================================= */
+
+    /* Typography */
+    .title { font-size: 14px; font-weight: 600; fill: var(--fg-default); }
+    .label { font-size: 13px; font-weight: 600; fill: var(--fg-default); text-anchor: middle; dominant-baseline: middle; }
+    .sub-label { font-size: 11px; fill: var(--fg-muted); text-anchor: middle; }
+    .label-bg-rect { fill: var(--bg-canvas); }
+
+    /* Containers */
+    .container-box { fill: none; stroke: var(--border-default); stroke-width: 1; rx: 6; stroke-dasharray: 4 2; }
+    
+    /* Component Specifics */
+    .frontend-fill { 
+      fill: var(--color-blue-bg); 
+      stroke: var(--color-blue-border); 
+      stroke-width: 1; 
+      rx: 6; 
+    }
+    
+    .api-fill { 
+      fill: var(--color-green-bg); 
+      stroke: var(--color-green-border); 
+      stroke-width: 1; 
+      rx: 6; 
+    }
+    
+    .orch-fill { 
+      fill: var(--color-orange-bg); 
+      stroke: var(--color-orange-border); 
+      stroke-width: 1; 
+      rx: 6; 
+    }
+    
+    .agent-fill { 
+      fill: var(--color-purple-bg); 
+      stroke: var(--color-purple-border); 
+      stroke-width: 1; 
+      rx: 6; 
+      animation: pulse 3s infinite ease-in-out;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0% { stroke-width: 1; }
+      50% { stroke-width: 2.5; filter: drop-shadow(0 0 2px var(--color-purple-border)); }
+      100% { stroke-width: 1; }
+    }
+
+    /* Connections */
+    .path-solid { fill: none; stroke: var(--fg-muted); stroke-width: 1.5; marker-end: url(#arrow); }
+    
+    .path-dashed { 
+      fill: none; 
+      stroke: var(--color-orange-fg); 
+      stroke-width: 1.5; 
+      stroke-dasharray: 6,4; 
+      marker-end: url(#arrow-dashed); 
+      animation: dash 1s linear infinite;
+      opacity: 0.8;
+    }
+
+    @keyframes dash {
+      to { stroke-dashoffset: -10; }
+    }
+    
+    /* Packets */
+    .packet { fill: var(--packet-color); }
+    .packet-agent { fill: var(--packet-agent); }
+    .packet-audit { fill: var(--packet-audit); }
+  </style>
+
+  <rect x="350" y="20" width="300" height="100" class="container-box" />
+  <text x="500" y="40" class="title" text-anchor="middle">Frontend</text>
+  
+  <rect x="400" y="50" width="200" height="50" class="frontend-fill" filter="url(#shadow)"/>
+  <text x="500" y="70" class="label">IRIS Dashboard</text>
+  <text x="500" y="85" class="sub-label">(Next.js)</text>
+
+  <path id="p1" d="M 500 100 L 500 160" class="path-solid" />
+  <circle r="3" class="packet">
+    <animateMotion dur="1.5s" repeatCount="indefinite" path="M 500 100 L 500 160" />
+  </circle>
+  
+  <rect x="470" y="120" width="60" height="20" class="label-bg-rect" stroke="none"/>
+  <text x="500" y="135" class="sub-label">REST API</text>
+
+
+  <rect x="50" y="160" width="900" height="150" class="container-box" />
+  <text x="500" y="180" class="title" text-anchor="middle">API Layer (FastAPI)</text>
+
+  <rect x="420" y="190" width="160" height="40" class="api-fill" filter="url(#shadow)"/>
+  <text x="500" y="210" class="label">API Gateway</text>
+
+  <rect x="80" y="270" width="130" height="30" class="api-fill" filter="url(#shadow)"/>
+  <text x="145" y="285" class="label" style="font-size:12px">QA / RAG Routes</text>
+
+  <rect x="250" y="270" width="130" height="30" class="api-fill" filter="url(#shadow)"/>
+  <text x="315" y="285" class="label" style="font-size:12px">Sentiment Routes</text>
+
+  <rect x="420" y="270" width="160" height="30" class="api-fill" filter="url(#shadow)"/>
+  <text x="500" y="285" class="label" style="font-size:12px">Forensic Routes</text>
+
+  <rect x="750" y="270" width="130" height="30" class="api-fill" filter="url(#shadow)"/>
+  <text x="815" y="285" class="label" style="font-size:12px">Reports Routes</text>
+
+  <path d="M 440 230 L 145 270" class="path-solid" />
+  <circle r="3" class="packet"><animateMotion dur="2s" repeatCount="indefinite" path="M 440 230 L 145 270" /></circle>
+  
+  <path d="M 480 230 L 315 270" class="path-solid" />
+  
+  <path d="M 500 230 L 500 270" class="path-solid" />
+  <circle r="3" class="packet"><animateMotion dur="2s" begin="0.5s" repeatCount="indefinite" path="M 500 230 L 500 270" /></circle>
+
+  <path d="M 560 230 L 815 270" class="path-solid" />
+
+
+  <rect x="350" y="340" width="300" height="80" class="container-box" />
+  <text x="500" y="360" class="title" text-anchor="middle">Orchestration</text>
+  
+  <rect x="400" y="370" width="200" height="40" class="orch-fill" filter="url(#shadow)"/>
+  <text x="500" y="390" class="label">Agent 6: Orchestrator</text>
+
+  <path d="M 500 300 L 500 370" class="path-solid" />
+  <circle r="3" class="packet"><animateMotion dur="1s" repeatCount="indefinite" path="M 500 300 L 500 370" /></circle>
+
+
+  <rect x="50" y="450" width="1100" height="600" class="container-box" />
+  <text x="600" y="470" class="title" text-anchor="middle">Agent Network</text>
+
+  <rect x="150" y="500" width="150" height="40" class="agent-fill" filter="url(#shadow)"/>
+  <text x="225" y="520" class="label">Agent 4: Compliance</text>
+
+  <rect x="320" y="500" width="160" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="400" y="520" class="label">Agent 8: Market Sentinel</text>
+  <text x="400" y="535" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">/ Sentiment</text>
+
+  <rect x="250" y="900" width="180" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="340" y="920" class="label">Agent 7: QA RAG (Gemini)</text>
+  <text x="340" y="935" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">3.0)</text>
+
+  <rect x="550" y="500" width="150" height="40" class="agent-fill" filter="url(#shadow)"/>
+  <text x="625" y="520" class="label">Agent 1: Ingestion</text>
+
+  <rect x="550" y="580" width="150" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="625" y="600" class="label">Agent 2: Forensic</text>
+  <text x="625" y="615" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">Analysis</text>
+
+  <rect x="550" y="680" width="150" height="40" class="agent-fill" filter="url(#shadow)"/>
+  <text x="625" y="700" class="label">Agent 3: Risk Scoring</text>
+
+  <rect x="550" y="780" width="150" height="40" class="agent-fill" filter="url(#shadow)"/>
+  <text x="625" y="800" class="label">Agent 5: Reporting</text>
+
+  <rect x="800" y="780" width="160" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="880" y="800" class="label">Agent 11: Report</text>
+  <text x="880" y="815" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">Generator</text>
+
+  <rect x="1000" y="680" width="140" height="35" class="agent-fill" filter="url(#shadow)"/>
+  <text x="1070" y="697" class="label">Agent 10: Auditor</text>
+
+  <rect x="1000" y="760" width="140" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="1070" y="780" class="label">Agent 9: Network</text>
+  <text x="1070" y="795" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">Analysis</text>
+
+  <rect x="1000" y="860" width="140" height="50" class="agent-fill" filter="url(#shadow)"/>
+  <text x="1070" y="880" class="label">Shell Hunter /</text>
+  <text x="1070" y="895" class="sub-label" style="fill: var(--fg-default); opacity: 0.8;">Validator</text>
+
+
+  <path d="M 450 410 C 400 450, 225 450, 225 500" class="path-dashed" />
+  <path d="M 480 410 C 450 450, 400 450, 400 500" class="path-dashed" />
+  <path d="M 600 410 L 625 500" class="path-dashed" />
+  <path d="M 580 410 C 520 450, 520 550, 550 600" class="path-dashed" />
+  <path d="M 550 410 C 480 450, 480 650, 550 700" class="path-dashed" />
+  <path d="M 520 410 C 440 450, 440 750, 550 800" class="path-dashed" />
+
+  <path d="M 145 300 L 145 850 L 250 925" class="path-solid" style="fill:none;" />
+  <circle r="3" class="packet">
+    <animateMotion dur="4s" repeatCount="indefinite" path="M 145 300 L 145 850 L 250 925" />
+  </circle>
+  
+  <path d="M 315 300 L 315 400 L 400 500" class="path-solid" />
+  <circle r="3" class="packet">
+    <animateMotion dur="3s" repeatCount="indefinite" path="M 315 300 L 315 400 L 400 500" />
+  </circle>
+
+  <path d="M 815 300 L 880 780" class="path-solid" />
+  <circle r="3" class="packet">
+    <animateMotion dur="3.5s" repeatCount="indefinite" path="M 815 300 L 880 780" />
+  </circle>
+
+  <path d="M 625 540 L 625 580" class="path-solid" />
+  <circle r="2.5" class="packet-agent"><animateMotion dur="1s" begin="0s" repeatCount="indefinite" path="M 625 540 L 625 580" /></circle>
+  <text x="635" y="560" font-size="11" fill="var(--fg-muted)">Calls</text>
+
+  <path d="M 625 630 L 625 680" class="path-solid" />
+  <circle r="2.5" class="packet-agent"><animateMotion dur="1s" begin="0.3s" repeatCount="indefinite" path="M 625 630 L 625 680" /></circle>
+  <text x="635" y="660" font-size="11" fill="var(--fg-muted)">Calls</text>
+
+  <path d="M 625 720 L 625 780" class="path-solid" />
+  <circle r="2.5" class="packet-agent"><animateMotion dur="1s" begin="0.6s" repeatCount="indefinite" path="M 625 720 L 625 780" /></circle>
+  <text x="635" y="750" font-size="11" fill="var(--fg-muted)">Calls</text>
+
+  <path d="M 700 700 L 880 780" class="path-solid" />
+  <circle r="2.5" class="packet-agent"><animateMotion dur="1.5s" begin="0.6s" repeatCount="indefinite" path="M 700 700 L 880 780" /></circle>
+  <text x="800" y="730" font-size="11" fill="var(--fg-muted)">Calls</text>
+
+
+  <path d="M 625 820 C 625 850, 450 880, 430 910" style="fill:none; stroke:var(--fg-muted); stroke-dasharray:4; marker-end:url(#arrow-dashed);" />
+  <circle r="2" fill="var(--fg-muted)"><animateMotion dur="2s" repeatCount="indefinite" path="M 625 820 C 625 850, 450 880, 430 910" /></circle>
+  <text x="540" y="870" font-size="11" fill="var(--fg-muted)">Indexing</text>
+
+
+  <path d="M 1070 715 L 1070 760" class="path-solid" />
+  <circle r="3" class="packet-audit"><animateMotion dur="1.5s" repeatCount="indefinite" path="M 1070 715 L 1070 760" /></circle>
+  <text x="1080" y="740" font-size="11" fill="var(--fg-muted)">Audit Data</text>
+
+  <path d="M 1070 810 L 1070 860" class="path-solid" />
+  <circle r="3" class="packet-audit"><animateMotion dur="1.5s" begin="0.5s" repeatCount="indefinite" path="M 1070 810 L 1070 860" /></circle>
+  <text x="1080" y="840" font-size="11" fill="var(--fg-muted)">Graph Data</text>
+
+</svg>
