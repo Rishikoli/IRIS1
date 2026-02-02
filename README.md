@@ -182,6 +182,12 @@ GEMINI_API_KEY=your_gemini_key
 *   [System Design Architecture](docs/SYSTEM_DESIGN.md)
 *   [Agent Reference Guide](docs/REFERENCE_AGENTS.md)
 *   [API Documentation](docs/SDK_API_REFERENCE.md)
+*   [Contributing Guide](CONTRIBUTING.md)
+
+## Team
+
+*   **Neel Dhoble**
+*   **Indrajit Kshirsagar**
 
 ## License
 
