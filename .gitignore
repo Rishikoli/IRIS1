@@ -28,3 +28,6 @@ Thumbs.db
 .env
 .env.*
 backend/reports/
+
+# Logs root
+*.log
