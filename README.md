@@ -43,10 +43,8 @@ Go beyond surface-level numbers. IRIS performs:
 *   **Fraud Models**: Automated Probit/Logit models for probability of default.
 *   **Manipulation Flags**: Instant red flags for aggressive revenue recognition or capitalization of expenses.
 
-### 3. "God Mode" Network Graph
-Interactive 3D/2D visualization of corporate relationships.
-*   **Cycle Detection**: Automatically finding closed loops of transactions.
-*   **Cluster Analysis**: Identifying suspicious groups of companies operating in unison.
+### 3. Automated Enforcement RFI
+Automatically drafts professional "Request for Information" (RFI) letters addressed to Audit Committees when anomalies are detected, referencing specific legal sections (e.g., SEBI LODR, Companies Act) to expedite regulatory inquiries.
 
 ### 4. SEBI Regulatory Compliance
 Dedicated module for Indian markets:
@@ -63,7 +61,7 @@ One-click generation of:
 
 ## System Architecture
 
-![System Architecture](./assets/Architecture_iris1.svg)
+![System Architecture](assets/Architecture_iris1.svg)
 
 
 IRIS implements a **Micro-Agent Architecture** to ensure scalability and fault tolerance.
