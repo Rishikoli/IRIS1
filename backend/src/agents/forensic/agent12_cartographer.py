@@ -4,6 +4,7 @@ import json
 from typing import Dict, Any, List
 import google.generativeai as genai
 from dotenv import load_dotenv
+from src.config import settings
 
 load_dotenv()
 
