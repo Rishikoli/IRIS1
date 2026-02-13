@@ -31,3 +31,4 @@ backend/reports/
 
 # Logs root
 *.log
+venv/
