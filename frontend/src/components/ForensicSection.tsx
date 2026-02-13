@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import axios from 'axios';
 
+import { FiShield } from 'react-icons/fi';
 import SentimentSection from './SentimentSection';
 import MarketSentinelSection from './MarketSentinelSection';
 import NetworkGraph from './NetworkGraph';
+import SebiRiskComposition from './charts/SebiRiskComposition';
+import SebiFlagPanel from './SebiFlagPanel';
 
 // Dynamically import D3 components to avoid SSR issues
 const FinancialRatiosChart = dynamic(() => import('@/components/charts/FinancialRatiosChart'), { ssr: false });
@@ -23,10 +26,16 @@ interface ForensicSectionProps {
   isLoading?: boolean;
   sentimentData?: any;
   isSentimentLoading?: boolean;
+  defaultTab?: string;
 }
 
-export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false }: ForensicSectionProps) {
-  const [activeSubTab, setActiveSubTab] = useState('network');
+export default function ForensicSection({ analysisData, isLoading = false, sentimentData, isSentimentLoading = false, defaultTab = 'network' }: ForensicSectionProps) {
+  const [activeSubTab, setActiveSubTab] = useState(defaultTab);
+
+  // Update local state if defaultTab prop changes (e.g. parent re-renders with new intent)
+  useEffect(() => {
+    if (defaultTab) setActiveSubTab(defaultTab);
+  }, [defaultTab]);
   const [networkData, setNetworkData] = useState<any>(null);
   const [isNetworkLoading, setIsNetworkLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -146,12 +155,14 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
     );
   }
 
+
+
   const subTabs = [
     { id: 'network', label: 'RPT Network', icon: '🕸️' },
-    { id: 'sentinel', label: 'Market Sentinel', icon: '🚨' }, // New Tab
+    { id: 'sentinel', label: 'Market Sentinel', icon: '🚨' },
     { id: 'sentiment', label: 'News Sentiment', icon: '📰' },
     { id: 'risk_explainability', label: 'Risk Explainability', icon: '📉' },
-
+    { id: 'sebi', label: 'SEBI Advisory', icon: '🛡️' },
     { id: 'ratios', label: 'Financial Ratios', icon: '🔢' },
     { id: 'benford', label: 'Benford\'s Law', icon: '📊' },
     { id: 'zscore', label: 'Altman Z-Score', icon: '⚖️' },
@@ -176,6 +187,44 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
             ) : (
               <div className="p-8 text-center text-slate-500 bg-slate-100 rounded-xl">
                 Risk explainability data not available for this company.
+              </div>
+            )}
+          </div>
+        );
+      case 'sebi':
+        return (
+          <div className="animate-fade-in-up">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-blue-600 rounded-xl shadow-lg shadow-blue-500/20">
+                <FiShield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800">SEBI Advisory & Supervision</h2>
+                <p className="text-slate-500">Risk, Concentration & Regulatory Compliance View</p>
+              </div>
+            </div>
+
+            {analysisData?.sebi_risk_analysis ? (
+              <div className="grid lg:grid-cols-3 gap-6">
+                {/* Main Risk Composition Chart (Span 2 cols) */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white/50 rounded-2xl p-1 shadow-sm border border-slate-100">
+                    <SebiRiskComposition
+                      data={analysisData.sebi_risk_analysis.riskComposition}
+                    />
+                  </div>
+                </div>
+
+                {/* Regulatory Flag Panel (Span 1 col) */}
+                <div className="lg:col-span-1">
+                  <SebiFlagPanel
+                    data={analysisData.sebi_risk_analysis.flagPanel}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="p-12 text-center text-slate-500 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                SEBI Risk data not available for this entity.
               </div>
             )}
           </div>

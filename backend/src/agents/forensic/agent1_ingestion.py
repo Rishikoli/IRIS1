@@ -586,7 +586,7 @@ class DataIngestionAgent:
                 value = float(clean_value)
             
             # Convert to lakhs (divide by 100,000)
-            lakhs_value = int(value / 100000) if value != 0 else 0
+            lakhs_value = round(value / 100000, 4) if value != 0 else 0.0
             return lakhs_value
             
         except (ValueError, TypeError, InvalidOperation):

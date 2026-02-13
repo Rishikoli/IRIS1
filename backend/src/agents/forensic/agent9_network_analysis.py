@@ -80,7 +80,7 @@ class NetworkAnalysisAgent:
                 return await asyncio.to_thread(self._fetch_insiders, company_symbol)
                 
             async def run_auditor():
-                return await asyncio.to_thread(self.auditor.analyze_annual_report, company_symbol)
+                return await self.auditor.analyze_annual_report(company_symbol)
                 
             async def run_exchange():
                 return await asyncio.to_thread(self.exchange.get_shareholding_pattern, company_symbol)
@@ -102,10 +102,10 @@ class NetworkAnalysisAgent:
             
             # Now start Gemini and Auditor with financials
             async def run_gemini():
-                return await asyncio.to_thread(self._analyze_rpt_with_gemini, clean_symbol, insiders)
+                return await self._analyze_rpt_with_gemini(clean_symbol, insiders)
                 
             async def run_auditor_with_financials():
-                return await asyncio.to_thread(self.auditor.analyze_annual_report, company_symbol, financial_data=financials)
+                return await self.auditor.analyze_annual_report(company_symbol, financial_data=financials)
 
             task_gemini = asyncio.create_task(run_gemini())
             task_auditor = asyncio.create_task(run_auditor_with_financials())
@@ -248,8 +248,10 @@ class NetworkAnalysisAgent:
             G.add_node(name, type="person", position=position, label=name)
             G.add_edge(name, company, relation="Director/Officer", weight=1)
 
-    def _analyze_rpt_with_gemini(self, company: str, insiders: List[Dict]) -> Dict[str, Any]:
-        """Use Gemini to extract real subsidiaries, associates, and RPT risks"""
+    async def _analyze_rpt_with_gemini(self, company: str, insiders: List[Dict]) -> Dict[str, Any]:
+        """Use Gemini to extract real subsidiaries, associates, and RPT risks with caching"""
+        from src.utils.gemini_client import GeminiClient
+        
         try:
             insider_names = [i['name'] for i in insiders]
             
@@ -280,52 +282,20 @@ class NetworkAnalysisAgent:
             Focus on REAL entities associated with {company}. If exact details are unavailable, infer likely structure based on industry (e.g., for Reliance, mention Retail, Jio, Petrochemicals subsidiaries).
             """
             
-            import time
+            # Use centralized client
+            client = GeminiClient()
+            text = await client.generate_content(prompt)
+            self.last_gemini_response = text
+            logger.info(f"Gemini RPT Response: {text[:100]}...")
             
-            keys = settings.gemini_keys
-            if not keys:
-                logger.error("No Gemini API keys found")
-                return {"subsidiaries": [], "associates": [], "transactions": []}
-
-            current_key_index = 0
-            max_retries = len(keys) * 2  # Allow 2 cycles through all keys
+            # Clean markdown if present
+            if text.startswith("```json"):
+                text = text[7:-3]
+            elif text.startswith("```"):
+                text = text[3:-3]
             
-            for attempt in range(max_retries):
-                try:
-                    # Configure with current key
-                    current_key = keys[current_key_index]
-                    genai.configure(api_key=current_key)
-                    model = genai.GenerativeModel(settings.gemini_model_name)
+            return json.loads(text)
 
-                    response = model.generate_content(prompt)
-                    text = response.text.strip()
-                    self.last_gemini_response = text
-                    logger.info(f"Gemini RPT Raw Response (Key {current_key_index}): {text[:100]}...")
-                    
-                    # Clean markdown if present
-                    if text.startswith("```json"):
-                        text = text[7:-3]
-                    elif text.startswith("```"):
-                        text = text[3:-3]
-                    
-                    return json.loads(text)
-
-                except Exception as e:
-                    error_msg = str(e)
-                    if "429" in error_msg or "Resource has been exhausted" in error_msg:
-                        logger.warning(f"Rate limit hit for key {current_key_index}, switching key...")
-                        current_key_index = (current_key_index + 1) % len(keys)
-                        time.sleep(1)  # Small delay before retry
-                    else:
-                        logger.error(f"Gemini API failed: {e}")
-                        # If it's not a rate limit, maybe we shouldn't retry indefinitely, but for now let's try next key just in case
-                        current_key_index = (current_key_index + 1) % len(keys)
-                        
-            # Return empty if API fails after all retries
-            logger.warning("Gemini API failed after exhausting all keys, returning empty RPT data")
-            self.last_gemini_response = "API Failed - No Data"
-            return {"subsidiaries": [], "associates": [], "transactions": []}
-                        
         except Exception as e:
             logger.error(f"Gemini RPT analysis failed: {e}")
             self.last_gemini_response = f"Error: {str(e)}"

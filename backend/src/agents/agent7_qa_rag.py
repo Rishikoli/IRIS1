@@ -179,9 +179,9 @@ class QASystem:
             logger.error(f"Document search failed: {e}")
             return []
 
-    def generate_answer(self, query: str, context_documents: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate answer using Gemini with RAG context and key rotation"""
-        import time
+    async def generate_answer(self, query: str, context_documents: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate answer using Gemini with RAG context and persistent caching"""
+        from src.utils.gemini_client import GeminiClient
         
         try:
             # Prepare context from similar documents
@@ -189,7 +189,7 @@ class QASystem:
 
             # Create prompt with context
             prompt = f"""
-You are a financial analysis expert specializing in Indian public companies. Answer the following question using the provided context from financial documents and analysis.
+You are a financial analysis expert specializing in Indian public companies. Answer the following question using the provided context from financial documents and تحلیل.
 
 **Context from Financial Documents:**
 {context}
@@ -210,68 +210,20 @@ You are a financial analysis expert specializing in Indian public companies. Ans
 - End with any relevant caveats or limitations
 """
 
-            # Get keys for rotation
-            keys = settings.gemini_keys
-            if not keys:
-                # Fallback to single key if list is empty (shouldn't happen with correct config)
-                keys = [settings.gemini_api_key]
+            # Use centralized client for generation (handles keys, retries, and caching)
+            client = GeminiClient()
+            answer_text = await client.generate_content(prompt)
 
-            last_error = None
-            
-            for key in keys:
-                try:
-                    # Configure with current key
-                    genai.configure(api_key=key)
-                    # Create a fresh model instance to ensure key is used
-                    model = genai.GenerativeModel(
-                        model_name=settings.gemini_model_name,
-                        generation_config=genai.types.GenerationConfig(
-                            temperature=0.1,
-                            max_output_tokens=2048,
-                            top_p=0.9,
-                            top_k=40
-                        )
-                    )
+            # Analyze sentiment with FinBERT
+            sentiment = self._analyze_sentiment_with_finbert(answer_text)
 
-                    # Generate response with Gemini
-                    response = model.generate_content(prompt)
-
-                    if response and response.text:
-                        answer_text = response.text.strip()
-
-                        # Analyze sentiment with FinBERT
-                        sentiment = self._analyze_sentiment_with_finbert(answer_text)
-
-                        return {
-                            "success": True,
-                            "answer": answer_text,
-                            "context_used": len(context_documents),
-                            "confidence": self._assess_confidence(query, context_documents, answer_text),
-                            "sources": [doc.get('metadata', {}).get('source', 'Unknown') for doc in context_documents[:3]],
-                            "sentiment": sentiment
-                        }
-                    else:
-                        # If response is empty but no error, maybe try next key or just return error?
-                        # Usually empty response means blocked content or error.
-                        raise Exception("Empty response from Gemini")
-
-                except Exception as e:
-                    last_error = e
-                    error_msg = str(e)
-                    if "429" in error_msg or "Resource has been exhausted" in error_msg:
-                        logger.warning(f"Rate limit hit for key ending in ...{key[-4:] if key else 'None'}, trying next key...")
-                        continue
-                    else:
-                        logger.error(f"Gemini error with key ending in ...{key[-4:] if key else 'None'}: {error_msg}")
-                        # For other errors, we might also want to retry with a different key/model just in case
-                        continue
-
-            # If we get here, all keys failed
-            logger.error(f"All Gemini keys failed. Last error: {str(last_error)}")
             return {
-                "success": False,
-                "error": f"All API keys exhausted or failed. Last error: {str(last_error)}",
-                "answer": "I apologize, but I am currently experiencing high traffic and cannot process your request. Please try again in a moment."
+                "success": True,
+                "answer": answer_text,
+                "context_used": len(context_documents),
+                "confidence": self._assess_confidence(query, context_documents, answer_text),
+                "sources": [doc.get('metadata', {}).get('source', 'Unknown') for doc in context_documents[:3]],
+                "sentiment": sentiment
             }
 
         except Exception as e:
@@ -319,7 +271,7 @@ You are a financial analysis expert specializing in Indian public companies. Ans
                 }
 
             # Generate answer with context
-            result = self.generate_answer(query, search_results)
+            result = await self.generate_answer(query, search_results)
 
             # Add metadata
             result.update({

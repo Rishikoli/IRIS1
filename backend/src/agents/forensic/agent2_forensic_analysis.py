@@ -857,19 +857,34 @@ class ForensicAnalysisAgent:
             # Yahoo Finance uses different field names - need to map them
             # Extract required values with multiple possible field names
 
-            # Total Assets - try multiple possible names
+            # Total Assets - try multiple possible names and calculation
             total_assets = (
                 balance_sheet.get("totalAssets") or
                 balance_sheet.get("Total Assets") or
                 balance_sheet.get("total_assets") or
                 0
             )
+            
+            # Fallback for Total Assets if missing: Non Current + Current
+            if total_assets == 0:
+                total_non_current = (
+                    balance_sheet.get("Total Non Current Assets") or 
+                    balance_sheet.get("totalNonCurrentAssets") or 0
+                )
+                total_current = (
+                    balance_sheet.get("Current Assets") or 
+                    balance_sheet.get("totalCurrentAssets") or 
+                    balance_sheet.get("Total Current Assets") or 0
+                )
+                if total_non_current != 0 and total_current != 0:
+                     total_assets = total_non_current + total_current
 
             # Current Assets
             current_assets = (
                 balance_sheet.get("totalCurrentAssets") or
                 balance_sheet.get("Total Current Assets") or
                 balance_sheet.get("current_assets") or
+                balance_sheet.get("Current Assets") or
                 0
             )
 
@@ -878,6 +893,7 @@ class ForensicAnalysisAgent:
                 balance_sheet.get("totalCurrentLiabilities") or
                 balance_sheet.get("Total Current Liabilities") or
                 balance_sheet.get("current_liabilities") or
+                balance_sheet.get("Current Liabilities") or
                 0
             )
 
@@ -1009,6 +1025,7 @@ class ForensicAnalysisAgent:
         """
         try:
             sloan_results = {}
+            debug_log = []
             
             # Group statements by period
             statements_by_period = {}
@@ -1020,27 +1037,109 @@ class ForensicAnalysisAgent:
                 statements_by_period[period][stmt_type] = stmt.get("data", {})
             
             sorted_periods = sorted(statements_by_period.keys())
+            debug_log.append(f"Found periods: {sorted_periods}")
             
-            for period in sorted_periods:
+            for i, period in enumerate(sorted_periods):
                 period_data = statements_by_period[period]
                 
                 income_stmt = period_data.get("income_statement", {})
                 balance_sheet = period_data.get("balance_sheet", {})
                 cash_flow = period_data.get("cash_flow_statement", {})
                 
-                if not (income_stmt and balance_sheet and cash_flow):
+                if not (income_stmt and balance_sheet):
+                    missing = []
+                    if not income_stmt: missing.append("Income Statement")
+                    if not balance_sheet: missing.append("Balance Sheet")
+                    debug_log.append(f"Period {period} skipped: Missing {', '.join(missing)}")
                     continue
-                    
-                net_income = income_stmt.get("net_profit", 0)
-                cfo = cash_flow.get("operating_cash_flow", 0)
-                total_assets = balance_sheet.get("total_assets", 0)
+                
+                # Helper to get safe float
+                def get_val(data, keys):
+                    for k in keys:
+                        if k in data and data[k] is not None:
+                            try:
+                                return float(data[k])
+                            except:
+                                pass
+                    return 0.0
+
+                net_income = get_val(income_stmt, ["net_income", "netIncome", "netProfit", "net_profit", "Net Income", "NetIncome"])
+                cfo = get_val(cash_flow, ["operating_cash_flow", "operatingCashFlow", "netCashProvidedByOperatingActivities", "Operating Cash Flow", "OperatingCashFlow"])
+                total_assets = get_val(balance_sheet, ["total_assets", "totalAssets", "Total Assets", "TotalAssets"])
                 
                 # Check for zero assets to avoid division by zero
                 if total_assets == 0:
+                    debug_log.append(f"Period {period} skipped: Total Assets is 0")
                     continue
+                
+                print(f"DEBUG: Processing Sloan for {period}. NetIncome: {net_income}, CFO: {cfo}, TotalAssets: {total_assets}")
+
+                accruals = 0
+                is_fallback = False
+
+                # Strategy 1: Standard (Net Income - CFO)
+                if cfo != 0:
+                    accruals = net_income - cfo
+                
+                # Strategy 2: Balance Sheet Method (Fallback)
+                # Accruals = (Delta CA - Delta Cash) - (Delta CL - Delta STD - Delta TP) - Dep
+                elif i > 0: # Need previous period
+                    # Find nearest previous period with Balance Sheet
+                    prev_bs = {}
+                    prev_period = None
                     
-                # Accruals = Net Income - CFO
-                accruals = net_income - cfo
+                    for j in range(i-1, -1, -1):
+                        p_date = sorted_periods[j]
+                        p_data = statements_by_period[p_date]
+                        if p_data.get("balance_sheet"):
+                             prev_bs = p_data.get("balance_sheet")
+                             prev_period = p_date
+                             break
+                    
+                    if not prev_bs:
+                        print(f"DEBUG: Fallback failed - no previous BS found before {period}")
+                        continue
+
+                    print(f"DEBUG: Using Fallback logic for {period} using previous period {prev_period}")
+
+                    # Helper to get safe float
+                    def get_val(data, keys):
+                        for k in keys:
+                            if k in data and data[k] is not None:
+                                return float(data[k])
+                        return 0.0
+
+                    # Current items
+                    ca_curr = get_val(balance_sheet, ["current_assets", "Current Assets", "CurrentAssets"])
+                    cash_curr = get_val(balance_sheet, ["cash_and_equivalents", "Cash And Cash Equivalents", "CashAndCashEquivalents"])
+                    cl_curr = get_val(balance_sheet, ["current_liabilities", "Current Liabilities", "CurrentLiabilities"])
+                    std_curr = get_val(balance_sheet, ["current_debt", "Current Debt", "Current Debt And Capital Lease Obligation", "short_term_debt"])
+                    
+                    # Previous items
+                    ca_prev = get_val(prev_bs, ["current_assets", "Current Assets", "CurrentAssets"])
+                    cash_prev = get_val(prev_bs, ["cash_and_equivalents", "Cash And Cash Equivalents", "CashAndCashEquivalents"])
+                    cl_prev = get_val(prev_bs, ["current_liabilities", "Current Liabilities", "CurrentLiabilities"])
+                    std_prev = get_val(prev_bs, ["current_debt", "Current Debt", "Current Debt And Capital Lease Obligation", "short_term_debt"])
+
+                    # Calculate Changes
+                    delta_ca = ca_curr - ca_prev
+                    delta_cash = cash_curr - cash_prev
+                    delta_cl = cl_curr - cl_prev
+                    delta_std = std_curr - std_prev
+                    
+                    # Depreciation (Try to find it, else 0)
+                    dep = get_val(income_stmt, ["depreciation", "Depreciation", "Depreciation And Amortization"])
+
+                    # Balance Sheet Accruals Formula
+                    accruals = (delta_ca - delta_cash) - (delta_cl - delta_std) - dep
+                    
+                    # Estimate CFO for display
+                    cfo = net_income - accruals
+                    is_fallback = True
+
+                else:
+                    # No CFO and no previous period to calc changes
+                    continue
                 
                 # Sloan Ratio = Accruals / Total Assets
                 sloan_ratio = (accruals / total_assets)
@@ -1059,12 +1158,13 @@ class ForensicAnalysisAgent:
                     "total_assets": total_assets,
                     "sloan_ratio_pct": round(sloan_pct, 2),
                     "risk_level": risk_level,
-                    "interpretation": "High probability of earnings manipulation (High Accruals)" if risk_level == "HIGH" else "Safe"
+                    "interpretation": ("High probability of earnings manipulation" if risk_level == "HIGH" else "Safe") + (" (Estimated)" if is_fallback else "")
                 }
                 
             return {
                 "success": True,
                 "sloan_analysis": sloan_results,
+                "debug_log": debug_log,
                 "analysis_date": datetime.now().isoformat()
             }
             
@@ -1577,6 +1677,10 @@ class ForensicAnalysisAgent:
                 is_data = period_data.get("income_statement", {})
                 
                 if bs_data and is_data:
+                    print(f"DEBUG: Calculating Z-Score for {period}")
+                    print(f"DEBUG: BS Keys: {list(bs_data.keys())[:20]}") 
+                    print(f"DEBUG: IS Keys: {list(is_data.keys())[:20]}")
+                    
                     z_result = self.calculate_altman_z_score(bs_data, is_data)
                     
                     if z_result.get("success"):

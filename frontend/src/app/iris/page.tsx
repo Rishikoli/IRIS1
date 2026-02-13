@@ -25,6 +25,7 @@ import ForensicFormulasModal from "@/components/ForensicFormulasModal";
 export default function IRISAnalyticsDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
+  const [intendedForensicTab, setIntendedForensicTab] = useState('network'); // Deep link state
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState('');
   const [comparisonCompanies, setComparisonCompanies] = useState<string[]>([]);
@@ -51,6 +52,10 @@ export default function IRISAnalyticsDashboard() {
   const [isLoadingQa, setIsLoadingQa] = useState(false);
   const [qaConfidence, setQaConfidence] = useState('');
   const [isFormulasModalOpen, setIsFormulasModalOpen] = useState(false);
+  // RFI State
+  const [rfiData, setRfiData] = useState<any>(null);
+  const [isGeneratingRfi, setIsGeneratingRfi] = useState(false);
+  const [isRfiModalOpen, setIsRfiModalOpen] = useState(false);
   // Handle analyze button click
   const handleAnalyze = async () => {
     if (!selectedCompany.trim()) {
@@ -447,6 +452,48 @@ export default function IRISAnalyticsDashboard() {
       console.error('Report download error:', err);
     }
   };
+
+  // Generate Enforcement RFI
+  const generateRFI = async () => {
+    if (!analysisData) {
+      setError('No analysis data available. Please analyze a company first.');
+      return;
+    }
+
+    setIsGeneratingRfi(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/reports/rfi', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          company_symbol: selectedCompany
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`RFI generation failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setRfiData(data);
+        setIsRfiModalOpen(true);
+      } else {
+        throw new Error(data.error || 'Failed to generate RFI');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate RFI. Please try again.');
+      console.error('RFI generation error:', err);
+    } finally {
+      setIsGeneratingRfi(false);
+    }
+  };
+
 
   const navItems = [
     {
@@ -918,6 +965,7 @@ export default function IRISAnalyticsDashboard() {
               isLoading={isAnalyzing}
               sentimentData={sentimentData}
               isSentimentLoading={isSentimentLoading}
+              defaultTab={intendedForensicTab}
             />
 
           )
@@ -1363,6 +1411,82 @@ export default function IRISAnalyticsDashboard() {
                       )}
                     </button>
                   </div>
+
+                  {/* Enforcement RFI Card */}
+                  <div className="neumorphic-card rounded-2xl p-6" style={{
+                    background: 'var(--card)',
+                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
+                    border: '2px solid rgba(220, 38, 38, 0.4)'
+                  }}>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center animate-pulse">
+                        <AlertTriangle className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>Enforcement RFI</h3>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Draft Legal Notice</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={generateRFI}
+                      disabled={isGeneratingRfi}
+                      className="w-full px-4 py-3 rounded-xl font-semibold transition-all neumorphic-button"
+                      style={{
+                        background: isGeneratingRfi ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                        boxShadow: '6px 6px 12px rgba(220, 38, 38, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
+                        color: '#fff',
+                        cursor: isGeneratingRfi ? 'not-allowed' : 'pointer',
+                        opacity: isGeneratingRfi ? 0.7 : 1
+                      }}
+                    >
+                      {isGeneratingRfi ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Drafting...
+                        </div>
+                      ) : (
+                        '⚖️ Draft RFI Letter'
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Enforcement RFI Card */}
+                  <div className="neumorphic-card rounded-2xl p-6" style={{
+                    background: 'var(--card)',
+                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
+                    border: '2px solid rgba(220, 38, 38, 0.4)'
+                  }}>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center animate-pulse">
+                        <AlertTriangle className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>Enforcement RFI</h3>
+                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Draft Legal Notice</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={generateRFI}
+                      disabled={isGeneratingRfi}
+                      className="w-full px-4 py-3 rounded-xl font-semibold transition-all neumorphic-button"
+                      style={{
+                        background: isGeneratingRfi ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
+                        boxShadow: '6px 6px 12px rgba(220, 38, 38, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
+                        color: '#fff',
+                        cursor: isGeneratingRfi ? 'not-allowed' : 'pointer',
+                        opacity: isGeneratingRfi ? 0.7 : 1
+                      }}
+                    >
+                      {isGeneratingRfi ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Drafting...
+                        </div>
+                      ) : (
+                        '⚖️ Draft RFI Letter'
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Recent Reports */}
@@ -1441,6 +1565,63 @@ export default function IRISAnalyticsDashboard() {
               </div>
             )
           }
+
+          {/* RFI Modal */}
+          {isRfiModalOpen && rfiData && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+              <div className="neumorphic-card rounded-3xl w-full max-w-3xl max-h-[80vh] overflow-hidden flex flex-col" style={{
+                background: 'var(--card)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}>
+                <div className="p-6 border-b border-border flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>Enforcement Action: RFI Draft</h3>
+                      <p className="text-sm text-muted-foreground">Addressed to {rfiData.target_committee}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsRfiModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-1 bg-gray-50 dark:bg-gray-900/50">
+                  <div className="prose prose-sm max-w-none dark:prose-invert font-serif whitespace-pre-wrap p-8 bg-white dark:bg-gray-800 shadow-sm rounded-xl border border-gray-200 dark:border-gray-700">
+                    {rfiData.rfi_draft}
+                  </div>
+                </div>
+
+                <div className="p-6 border-t border-border flex justify-end gap-3 bg-gray-50/50 dark:bg-gray-900/30">
+                  <div className="flex-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>References: {rfiData.law_references?.join(', ')}</span>
+                  </div>
+                  <button
+                    onClick={() => setIsRfiModalOpen(false)}
+                    className="px-4 py-2 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(rfiData.rfi_draft);
+                      // Optional: Show toast
+                    }}
+                    className="px-6 py-2 rounded-xl font-bold text-white shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}
+                  >
+                    📋 Copy to Clipboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {
             analysisData && activeTab === 'overview' ? (
               <>
@@ -1619,12 +1800,74 @@ export default function IRISAnalyticsDashboard() {
                     </div>
                   </div>
 
-                  {/* Risk Assessment Dashboard Component */}
-                  <RiskDashboard
-                    riskScore={null}
-                    analysisResult={analysisData}
-                    isLoading={isAnalyzing}
-                  />
+                  {/* SEBI Advisory Summary Card */}
+                  <div className="neumorphic-card rounded-3xl p-8 flex flex-col justify-between group" style={{
+                    background: 'var(--card)', color: 'var(--foreground)',
+                    backdropFilter: 'blur(15px)',
+                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
+                    border: '2px solid rgba(59, 130, 246, 0.2)'
+                  }}>
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-3 bg-blue-500/10 rounded-xl">
+                          <ShieldCheck className="w-8 h-8 text-blue-500" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>SEBI Advisory</h2>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-blue-500">Regulatory View</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 mb-6">
+                        {(() => {
+                          const flagData = analysisData.sebi_risk_analysis?.flagPanel || {};
+                          let critical = 0;
+                          let warning = 0;
+                          if (flagData.singleStockExposure > 10) critical++;
+                          if (flagData.sectorExposure > 25) warning++;
+                          if (flagData.zScore < 1.8 && flagData.singleStockExposure > 5) critical++;
+                          if (flagData.hasShellLinks) critical++;
+
+                          return (
+                            <>
+                              <div className="p-4 rounded-xl" style={{ background: critical > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)' }}>
+                                <p className="text-sm font-medium mb-1" style={{ color: 'var(--muted-foreground)' }}>Compliance Status</p>
+                                <p className="text-xl font-bold" style={{ color: critical > 0 ? '#ef4444' : '#22c55e' }}>
+                                  {critical > 0 ? 'Action Required' : 'Compliant'}
+                                </p>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-xl border border-red-500/20 text-center">
+                                  <span className="block text-2xl font-bold text-red-500">{critical}</span>
+                                  <span className="text-xs text-muted-foreground">Critical Flags</span>
+                                </div>
+                                <div className="p-3 rounded-xl border border-amber-500/20 text-center">
+                                  <span className="block text-2xl font-bold text-amber-500">{warning}</span>
+                                  <span className="text-xs text-muted-foreground">Warnings</span>
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setIntendedForensicTab('sebi');
+                        setActiveTab('forensic');
+                      }}
+                      className="w-full py-3 rounded-2xl font-semibold transition-all neumorphic-button flex items-center justify-center gap-2"
+                      style={{
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                        boxShadow: '6px 6px 12px rgba(59, 130, 246, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
+                        color: '#fff'
+                      }}
+                    >
+                      <span>View Full Report</span>
+                    </button>
+                  </div>
                 </div>
               </>
             ) : null

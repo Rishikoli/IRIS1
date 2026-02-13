@@ -238,6 +238,11 @@ export default function SloanRatioChart({ data }: SloanRatioChartProps) {
 
     return (
         <div className="w-full space-y-8">
+            {/* DEBUG: Temporary Data Dump */}
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-xs font-mono overflow-auto max-h-40">
+                <strong>DEBUG DATA:</strong> {JSON.stringify(data)}
+            </div>
+
             {/* Header Section */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="flex-1">

@@ -97,7 +97,7 @@ async def analyze_sentiment(request: SentimentRequest):
         if not request.company_symbol.strip():
             raise HTTPException(status_code=400, detail="Company symbol cannot be empty")
 
-        result = market_sentiment_agent.get_sentiment_analysis(request.company_symbol)
+        result = await market_sentiment_agent.get_sentiment_analysis(request.company_symbol)
         
         if "error" in result:
              logger.error(f"Sentiment analysis failed: {result['error']}")

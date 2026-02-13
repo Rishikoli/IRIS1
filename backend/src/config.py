@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     # Cache TTL
     cache_ttl_financial_data: int = Field(default=86400, env="CACHE_TTL_FINANCIAL_DATA")
     cache_ttl_company_profile: int = Field(default=604800, env="CACHE_TTL_COMPANY_PROFILE")
+
+    # Local LLM (Ollama)
+    enable_local_llm_fallback: bool = Field(default=False, env="ENABLE_LOCAL_LLM_FALLBACK")
+    local_llm_url: str = Field(default="http://localhost:11434", env="LOCAL_LLM_URL")
+    local_llm_model: str = Field(default="llama3", env="LOCAL_LLM_MODEL")
     
     class Config:
         env_file = ".env"

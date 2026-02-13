@@ -925,34 +925,37 @@ class RiskScoringAgent:
             risk_increase = 0.0
             factors = []
             
-            logger.info(f"Searching market sentiment for {company_name}...")
+            # TEMPORARY FIX: Bypass DDGS to prevent crash during report generation
+            return 0.0, []
             
-            with DDGS() as ddgs:
-                # Get last 5 results
-                results = list(ddgs.text(query, max_results=5))
-                
-                if not results:
-                    return 0.0, []
-                
-                negative_hits = 0
-                for r in results:
-                    title = r.get('title', '').lower()
-                    body = r.get('body', '').lower()
-                    content = title + " " + body
-                    
-                    found_keywords = [kw for kw in negative_keywords if kw in content]
-                    if found_keywords:
-                        negative_hits += 1
-                        # Log unique keywords for context
-                        factors.append(f"Negative sentiment detected: '{found_keywords[0]}' in news")
-                        
-                # Scoring logic: +5 per negative hit, max 20
-                if negative_hits > 0:
-                    risk_increase = min(20.0, negative_hits * 5.0)
-                    factors = list(set(factors)) # Deduplicate
-                    factors.append(f"High negative news volume ({negative_hits} articles found)")
-                    
-            return risk_increase, factors
+            # logger.info(f"Searching market sentiment for {company_name}...")
+            # 
+            # with DDGS() as ddgs:
+            #     # Get last 5 results
+            #     results = list(ddgs.text(query, max_results=5))
+            #     
+            #     if not results:
+            #         return 0.0, []
+            #     
+            #     negative_hits = 0
+            #     for r in results:
+            #         title = r.get('title', '').lower()
+            #         body = r.get('body', '').lower()
+            #         content = title + " " + body
+            #         
+            #         found_keywords = [kw for kw in negative_keywords if kw in content]
+            #         if found_keywords:
+            #             negative_hits += 1
+            #             # Log unique keywords for context
+            #             factors.append(f"Negative sentiment detected: '{found_keywords[0]}' in news")
+            #             
+            #     # Scoring logic: +5 per negative hit, max 20
+            #     if negative_hits > 0:
+            #         risk_increase = min(20.0, negative_hits * 5.0)
+            #         factors = list(set(factors)) # Deduplicate
+            #         factors.append(f"High negative news volume ({negative_hits} articles found)")
+            #         
+            # return risk_increase, factors
 
         except Exception as e:
             logger.warning(f"Market sentiment analysis failed: {e}")

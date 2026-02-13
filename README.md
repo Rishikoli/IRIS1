@@ -3,40 +3,26 @@
 **I.R.I.S.** is an advanced, autonomic multi-agent AI platform designed for real-time financial forensic analysis, fraud detection, and risk assessment. It moves beyond traditional static auditing by using a swarm of specialized AI agents to continuously monitor, analyze, and visualize corporate financial health.
 
 ![Next JS](https://img.shields.io/badge/Next-black?style=for-the-badge&logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
-![TailwindCSS](https://img.shields.io/badge/tailwindcss-%2338B2AC.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
-![Google Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=google&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
-![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
-![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
-![NumPy](https://img.shields.io/badge/numpy-%23013243.svg?style=for-the-badge&logo=numpy&logoColor=white)
-![NetworkX](https://img.shields.io/badge/NetworkX-FFA500?style=for-the-badge&logo=networkx&logoColor=white)
+![React](https://img.shields.io/badge/react-%235D688A.svg?style=for-the-badge&logo=react&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/tailwindcss-%23F7A5A5.svg?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Python](https://img.shields.io/badge/python-5D688A?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-5D688A?style=for-the-badge&logo=fastapi&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Google%20Gemini-F7A5A5?style=for-the-badge&logo=google&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-FFDBB6?style=for-the-badge&logo=postgresql&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-%235D688A.svg?style=for-the-badge&logo=pandas&logoColor=white)
+![NumPy](https://img.shields.io/badge/numpy-%23F7A5A5.svg?style=for-the-badge&logo=numpy&logoColor=white)
+![NetworkX](https://img.shields.io/badge/NetworkX-FFDBB6?style=for-the-badge&logo=networkx&logoColor=white)
 ![Shadcn/UI](https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
-![Recharts](https://img.shields.io/badge/Recharts-22b5bf?style=for-the-badge&logo=react&logoColor=white)
+![Recharts](https://img.shields.io/badge/Recharts-FFDBB6?style=for-the-badge&logo=react&logoColor=white)
 
 
 ---
 
 ## The "Council of Agents"
 
-IRIS is powered by a coordinated swarm of specialized AI agents, each an expert in a specific domain of financial forensics.
+IRIS is powered by a coordinated **Council** of specialized AI agents, each functioning as a domain expert in financial forensics.
 
-| Agent | Name | Role | Core Function |
-| :--- | :--- | :--- | :--- |
-| **Agent 1** | **Forensic Analyst** | *The Auditor* | Ingests detailed PL/BS data to calculate 29+ forensic ratios (Beneish M-Score, Altman Z-Score) to detect accounting anomalies. |
-| **Agent 2** | **Shell Hunter** | *The Detective* | Utilizes Graph Theory (NetworkX) to visualize and detect circular trading rings, hidden related parties, and potential shell companies. |
-| **Agent 3** | **Risk Scorer** | *The Judge* | Synthesizes outputs from all agents into a unified Risk Score (0-100) with SHAP-based explainability for transparent decision-making. |
-| **Agent 4** | **Compliance Agent** | *The Enforcer* | Validates compliance with SEBI LODR, Ind AS, and Companies Act 2013 regulations. |
-| **Agent 5** | **Report Generator** | *The Scribe* | Compiles complex findings into executive-grade PDF and Excel audit reports, ready for regulatory submission. |
-| **Agent 6** | **Orchestrator** | *The Manager* | Coordinates tasks between agents via Kafka/Celery. |
-| **Agent 7** | **QA RAG System** | *The Librarian* | Vector-based "Chat with Data" system allowing analysts to query thousands of pages of annual reports instantly. |
-| **Agent 8** | **Market Sentinel** | *The Watcher* | Continuously monitors news and search trends using FinBERT to gauge market sentiment and detect pump-and-dump schemes. |
-| **Agent 9** | **Network Analysis** | *Back-end Logic* | Powers the RPT graph construction and cycle detection algorithms. |
-| **Agent 10** | **Auditor** | *The Reviewer* | Deep analyzes text in annual reports for governance red flags. |
-| **Agent 12** | **Cartographer** | *The Mapper* | Provides geospatial intelligence to track cross-border financial flows and highlight jurisdictional risks. |
+![Council of Agents](assets/council_of_agents_grid.png)
 
 ---
 
@@ -69,7 +55,7 @@ One-click generation of:
 
 ## System Architecture
 
-![System Architecture](https://raw.githubusercontent.com/Rishikoli/IRIS1/master/assets/Architecture_iris1.svg)
+![System Architecture](assets/Architecture_iris1.svg)
 
 
 IRIS implements a **Micro-Agent Architecture** to ensure scalability and fault tolerance.
@@ -82,12 +68,44 @@ IRIS implements a **Micro-Agent Architecture** to ensure scalability and fault t
 ### Backend Layer
 *   **API**: FastAPI (High-performance async Python)
 *   **Orchestration**: Custom agent loop with shared state management
-*   **AI Engine**: Google Gemini 2.5 Flash via LangChain
+*   **AI Engine**: Google Gemini 2.5 Flash
 
 ### Data Layer
 *   **Vector Store**: ChromaDB (for RAG and Document Search)
-*   **Cache**: Redis (for Agent State and Rate Limiting)
 *   **Database**: PostgreSQL (for persistent transactional data)
+
+---
+
+## 📂 Project Structure
+
+A quick overview of the codebase organization:
+
+```text
+IRIS1/
+├── 📂 backend/             # FastAPI Core & Agents
+│   ├── 📂 src/agents/      # The "Council of Agents" logic
+│   ├── 📂 src/api/         # API Routes & WebSockets
+│   └── 📂 tests/           # Pytest Suites
+├── 📂 frontend/            # Next.js 14 Client
+│   ├── 📂 components/      # Shadcn/UI & Recharts
+│   └── 📂 app/             # Application Routes
+├── 📂 docs/                # Detailed Documentation & Assets
+└── 📂 assets/              # Diagrams & Media
+```
+
+---
+
+## 🗺️ Roadmap
+
+The future of IRIS includes:
+
+- [x] **Local LLM Support**: Added fallback to Ollama for offline/private analysis.
+- [x] **Shell Hunter Graph**: 3D interactive visualization of complex fraud rings.
+- [x] **Refined Reporting**: HTML-formatted risk assessments with strict output controls.
+- [ ] **Blockchain Layer**: Immutable audit trails for forensic reports.
+- [ ] **Mobile App**: React Native version for on-the-go risk alerts.
+- [ ] **Multi-Language Support**: Localization for global financial markets.
+- [ ] **Advanced OCR**: Handling non-standard/scanned PDF annual reports.
 
 ---
 
@@ -157,7 +175,11 @@ GEMINI_API_KEY=your_gemini_key
     ```bash
     # In one terminal
     cd backend
-    uvicorn src.main:app --reload
+    # Make sure your virtual environment is activated
+    source iris_venv/bin/activate
+    
+    # Start the server (pointing to src.api.main)
+    uvicorn src.api.main:app --reload
     ```
 
 2.  **Launch Frontend**:
@@ -177,17 +199,66 @@ GEMINI_API_KEY=your_gemini_key
 
 ---
 
+## 📸 Screenshots
+
+| Dashboard Overview | Network Graph |
+|:---:|:---:|
+| ![Overview](assets/ola_best_1_overview.png) | ![Network](assets/ola_best_2_network.png) |
+| **Real-time Risk Intelligence** | **Related Party Circular Loops** |
+
+| Detail View |
+|:---:|
+| ![Details](assets/ola_best_3_details.png) |
+| **Deep Forensic Metrics** |
+
+---
+
+## 🔧 Troubleshooting
+
+### "Error loading ASGI app" / ModuleNotFoundError
+If you see `Could not import module "src.main"`, it means you are using the old startup command.
+**Solution**: Use the correct path to the main application:
+```bash
+uvicorn src.api.main:app --reload
+```
+
+### "Address already in use"
+If port 8000 is blocked:
+```bash
+lsof -i :8000
+kill -9 <PID>
+```
+
+### Database Connection Failed
+Ensure your PostgreSQL container or service is running and the `DATABASE_URL` in `.env` is correct.
+
+
+---
+
 ## Documentation
 
-*   [System Design Architecture](docs/SYSTEM_DESIGN.md)
-*   [Agent Reference Guide](docs/REFERENCE_AGENTS.md)
-*   [API Documentation](docs/SDK_API_REFERENCE.md)
 *   [Contributing Guide](CONTRIBUTING.md)
 
 ## Team
 
-*   **Neel Dhoble**
-*   **Indrajit Kshirsagar**
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/profile_neel.png" width="150" alt="Neel Dhoble"><br>
+        <b>Neel Dhoble</b>
+      </td>
+      <td align="center">
+        <img src="assets/profile_indrajit.png" width="150" alt="Indrajit Kshirsagar"><br>
+        <b>Indrajit Kshirsagar</b>
+      </td>
+      <td align="center">
+        <img src="assets/profile_rishi.png" width="150" alt="Rishi Koli"><br>
+        <b>Rishi Koli</b>
+      </td>
+    </tr>
+  </table>
+</div>
 
 ## License
 

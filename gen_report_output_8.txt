@@ -1,0 +1,44 @@
+DEBUG: Database URL (masked): postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Full URL length: 80
+INFO:database.connection:Initializing database connection to: postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Database URL (masked): postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Full URL length: 80
+INFO:database.connection:Database engine initialized successfully
+INFO:src.agents.forensic.agent4_compliance:Loaded compliance rules from /home/aditya/IRIS1/backend/src/agents/forensic/config/compliance_rules.json
+INFO:src.agents.forensic.agent4_compliance:Compliance Validation Agent initialized
+INFO:src.agents.forensic.agent3_risk_scoring:Risk Scoring Agent initialized
+INFO:src.agents.forensic.agent4_compliance:Loaded compliance rules from /home/aditya/IRIS1/backend/src/agents/forensic/config/compliance_rules.json
+INFO:src.agents.forensic.agent4_compliance:Compliance Validation Agent initialized
+INFO:src.agents.forensic.agent5_reporting:Reporting Agent initialized
+Fetching data for OLAELEC.NS...
+Fetched 6 statements
+Running Forensic Analysis...
+DEBUG: Processing Sloan for 2023-03-31. NetIncome: -14720790000.0, CFO: 0.0, TotalAssets: 55731690000.0
+DEBUG: Processing Sloan for 2024-03-31. NetIncome: -15840000000.0, CFO: 0.0, TotalAssets: 77350000000.0
+DEBUG: Using Fallback logic for 2024-03-31 using previous period 2023-03-31
+DEBUG: Processing Sloan for 2025-03-31. NetIncome: -22760000000.0, CFO: 0.0, TotalAssets: 110750000000.0
+DEBUG: Using Fallback logic for 2025-03-31 using previous period 2024-03-31
+DEBUG: Calculating Z-Score for 2023-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Capital Lease Obligations', 'Common Stock Equity', 'Preferred Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Calculating Z-Score for 2024-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Capital Lease Obligations', 'Common Stock Equity', 'Preferred Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Calculating Z-Score for 2025-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Capital Lease Obligations', 'Common Stock Equity', 'Preferred Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Forensic Result Keys: dict_keys(['company_id', 'analysis_date', 'success', 'vertical_analysis', 'horizontal_analysis', 'financial_ratios', 'sloan_ratio', 'dechow_f_score', 'benford_analysis', 'altman_z_score', 'beneish_m_score', 'anomaly_detection', 'gst_reconciliation', 'contingent_liability_risk', 'greed_index'])
+DEBUG: Sloan Ratio in Forensic Result: {'success': True, 'sloan_analysis': {'2024-03-31': {'net_income': -15840000000.0, 'operating_cash_flow': -7847570000.0, 'accruals': -7992430000.0, 'total_assets': 77350000000.0, 'sloan_ratio_pct': -10.33, 'risk_level': 'HIGH', 'interpretation': 'High probability of earnings manipulation (Estimated)'}, '2025-03-31': {'net_income': -22760000000.0, 'operating_cash_flow': -53610000000.0, 'accruals': 30850000000.0, 'total_assets': 110750000000.0, 'sloan_ratio_pct': 27.86, 'risk_level': 'HIGH', 'interpretation': 'High probability of earnings manipulation (Estimated)'}}, 'debug_log': ["Found periods: ['2023-03-31', '2024-03-31', '2025-03-31']"], 'analysis_date': '2026-02-13T20:53:19.201312'}
+Running Risk & Compliance Assessment...
+INFO:src.agents.forensic.agent3_risk_scoring:Calculating risk score for OLAELEC.NS
+INFO:src.agents.forensic.agent3_risk_scoring:Calculating risk score for OLAELEC.NS
+WARNING:src.agents.forensic.agent3_risk_scoring:No ratio data available for ROE calculation
+INFO:src.agents.forensic.agent4_compliance:Starting compliance validation for OLAELEC.NS
+INFO:src.agents.forensic.agent4_compliance:Starting compliance validation for OLAELEC.NS
+Generating Comprehensive Report...
+INFO:src.agents.forensic.agent5_reporting:Executive summary generated for OLAELEC.NS using key ending in ...z2tw
+INFO:src.agents.forensic.agent5_reporting:Report stored for OLAELEC.NS
+
+Report Generation SUCCESS!
+Report ID: report_OLAELEC.NS_20260213_205406
+Exported: /home/aditya/IRIS1/backend/reports/IRIS_Forensic_Audit_OLAELEC.NS_20260213_205406.pdf

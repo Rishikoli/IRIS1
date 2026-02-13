@@ -46,7 +46,12 @@ Write in professional, analytical tone. Use HTML tags for emphasis: <strong> for
 3. **Key Risk Drivers** - Identify top 3 risk categories and their implications
 4. **Monitoring Frequency** - Recommend review schedule: >70 (WEEKLY), 40-70 (BI-WEEKLY), <40 (MONTHLY)
 
-Write in professional, advisory tone. Use HTML tags: <strong> for key metrics, <span style="color: #22c55e; font-weight: 600;"> for low risk, <span style="color: #f59e0b; font-weight: 600;"> for moderate risk, <span style="color: #ef4444; font-weight: 600;"> for high risk.`;
+Write in professional, advisory tone.
+IMPORTANT FORMATTING RULES:
+- Use HTML tags ONLY: <strong> for bold text, <span style="color: #22c55e;"> for low risk, <span style="color: #f59e0b;"> for moderate risk, <span style="color: #ef4444;"> for high risk.
+- DO NOT use markdown symbols like ** or ##. 
+- DO NOT use bullet points * or -. Use HTML <ul> and <li> if listing items, or just separate lines.
+- The output will be rendered directly as HTML.`;
     }
 
     // Initialize Gemini API with key rotation

@@ -59,12 +59,14 @@ class ShellHunterAgent:
         # --- 1. Legitimate Structure (The "Clean" Part) ---
         self.graph.add_node(root_node, type="company", category="target", risk=0)
         
-        subsidiaries = [f"{root_node}_Sub_{i}" for i in range(1, 4)]
+        # Increased subsidiaries for density
+        subsidiaries = [f"{root_node}_Sub_{i}" for i in range(1, 6)]
         for sub in subsidiaries:
             self.graph.add_node(sub, type="company", category="subsidiary", risk=10)
             self.graph.add_edge(root_node, sub, relation="ownership", weight=100)
 
-        vendors = [f"Vendor_{i}" for i in range(1, 6)]
+        # Increased vendors for chaos
+        vendors = [f"Vendor_{i}" for i in range(1, 12)]
         for vendor in vendors:
             self.graph.add_node(vendor, type="company", category="vendor", risk=5)
             # Link to random sub or root
@@ -85,13 +87,25 @@ class ShellHunterAgent:
 
         # Create the Cycle (Money Flow)
         # Root pays Shell A (fake invoice)
-        self.graph.add_edge(root_node, shell_a, relation="payment", weight=500, label="Consulting Fees (No Invoice)")
+        self.graph.add_edge(root_node, shell_a, relation="payment", weight=500, label="Consulting Fees")
         # Shell A pays Shell B (layering)
         self.graph.add_edge(shell_a, shell_b, relation="transfer", weight=480, label="Unsecured Loan")
         # Shell B pays Shell C (layering)
-        self.graph.add_edge(shell_b, shell_c, relation="investment", weight=450, label="Convertible Debentures")
+        self.graph.add_edge(shell_b, shell_c, relation="investment", weight=450, label="Debentures")
         # Shell C invests back in Root (Integration/Round Tripping)
         self.graph.add_edge(shell_c, root_node, relation="investment", weight=400, label="FDI / Round Trip")
+
+        # --- 2.5 The "Complex Ring" (Nested Layering) ---
+        shell_d = "Blue_Sky_Logistics"
+        shell_e = "Evergreen_Trading_Co"
+        
+        self.graph.add_node(shell_d, type="shell", category="shell", risk=75, address="Co-working Space, Bangalore")
+        self.graph.add_node(shell_e, type="shell", category="shell", risk=80, address="Residential Address, Kolkata")
+        
+        # Link Shell B to D to E back to A (Complex web)
+        self.graph.add_edge(shell_b, shell_d, relation="payment", weight=200, label="Logistics Charges")
+        self.graph.add_edge(shell_d, shell_e, relation="transfer", weight=190, label="Advance")
+        self.graph.add_edge(shell_e, shell_a, relation="repayment", weight=180, label="Loan Repayment")
 
         # --- 3. The "Interlocking Director" (The Mastermind) ---
         director = "Vikram_'The_Ghost'_Mehta"
@@ -100,6 +114,8 @@ class ShellHunterAgent:
         self.graph.add_edge(director, shell_a, relation="director", weight=0)
         self.graph.add_edge(director, shell_b, relation="director", weight=0)
         self.graph.add_edge(director, shell_c, relation="director", weight=0)
+        # Also connected to the complex ring
+        self.graph.add_edge(director, shell_e, relation="director", weight=0)
 
 
     def _detect_circular_trading(self) -> List[List[str]]:

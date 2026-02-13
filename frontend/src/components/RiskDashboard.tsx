@@ -42,6 +42,11 @@ interface AnalysisResult {
     riskComposition: any[]
     flagPanel: any
   }
+  compliance_assessment?: {
+    violations: any[]
+    compliance_status: string
+    overall_compliance_score: number
+  }
 }
 
 interface RiskDashboardProps {
@@ -49,6 +54,8 @@ interface RiskDashboardProps {
   analysisResult: AnalysisResult | null
   isLoading: boolean
 }
+
+import ComplianceViolationsList from './ComplianceViolationsList'
 
 export default function RiskDashboard({ riskScore, analysisResult, isLoading }: RiskDashboardProps) {
   const [activeSection, setActiveSection] = useState<'overview' | 'factors' | 'trends' | 'network'>('overview')
@@ -139,6 +146,11 @@ export default function RiskDashboard({ riskScore, analysisResult, isLoading }: 
                 />
               </div>
             </div>
+
+            {/* Detailed Compliance Violations */}
+            {analysisResult.compliance_assessment && (
+              <ComplianceViolationsList violations={analysisResult.compliance_assessment.violations} />
+            )}
           </div>
         </div>
       )}

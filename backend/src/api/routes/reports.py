@@ -185,3 +185,48 @@ async def download_report_api(filename: str):
     except Exception as e:
         logger.error(f"Error downloading report {filename}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to download report: {str(e)}")
+
+
+@reports_router.post("/rfi")
+async def generate_rfi_api(request: Dict[str, Any]):
+    """Generate an Enforcement RFI letter"""
+    try:
+        company_symbol = request.get('company_symbol')
+        if not company_symbol:
+            raise HTTPException(status_code=400, detail="Company symbol is required")
+
+        # 1. Get forensic data (findings)
+        try:
+            ingestion_result = await ingest_company_data(company_symbol)
+            financial_statements = ingestion_result["financial_statements"]
+            forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+        except Exception as e:
+            logger.error(f"Failed to get forensic data for RFI: {e}")
+            raise HTTPException(status_code=500, detail="Could not retrieve forensic findings")
+
+        if not forensic_result.get('success'):
+             raise HTTPException(status_code=404, detail="Forensic analysis failed")
+
+        # 2. Extract key findings for the RFI
+        # We'll use specific anomalies or risk factors if available, otherwise general findings
+        findings = []
+        if 'anomaly_detection' in forensic_result:
+             findings.extend(forensic_result['anomaly_detection'].get('anomalies', []))
+        
+        # If no specific anomalies, use high-level metrics as "findings"
+        if not findings:
+             findings.append({"observation": "General forensic review initiated"})
+
+        # 3. Generate RFI using Agent 5
+        rfi_result = await reporting_agent.generate_enforcement_rfi(company_symbol, findings)
+
+        if not rfi_result.get('success'):
+            raise HTTPException(status_code=500, detail=f"RFI generation failed: {rfi_result.get('error')}")
+
+        return rfi_result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating RFI: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

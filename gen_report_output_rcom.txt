@@ -1,0 +1,44 @@
+DEBUG: Database URL (masked): postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Full URL length: 80
+INFO:database.connection:Initializing database connection to: postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Database URL (masked): postgresql://postgres:***@db.your-project.supabase.co:5432/postgres
+DEBUG: Full URL length: 80
+INFO:database.connection:Database engine initialized successfully
+INFO:src.agents.forensic.agent4_compliance:Loaded compliance rules from /home/aditya/IRIS1/backend/src/agents/forensic/config/compliance_rules.json
+INFO:src.agents.forensic.agent4_compliance:Compliance Validation Agent initialized
+INFO:src.agents.forensic.agent3_risk_scoring:Risk Scoring Agent initialized
+INFO:src.agents.forensic.agent4_compliance:Loaded compliance rules from /home/aditya/IRIS1/backend/src/agents/forensic/config/compliance_rules.json
+INFO:src.agents.forensic.agent4_compliance:Compliance Validation Agent initialized
+INFO:src.agents.forensic.agent5_reporting:Reporting Agent initialized
+Fetching data for RCOM.NS...
+Fetched 6 statements
+Running Forensic Analysis...
+DEBUG: Processing Sloan for 2023-03-31. NetIncome: -144990000000.0, CFO: 0.0, TotalAssets: 367680000000.0
+DEBUG: Processing Sloan for 2024-03-31. NetIncome: -72120000000.0, CFO: 0.0, TotalAssets: 365540000000.0
+DEBUG: Using Fallback logic for 2024-03-31 using previous period 2023-03-31
+DEBUG: Processing Sloan for 2025-03-31. NetIncome: -93890000000.0, CFO: 0.0, TotalAssets: 364250000000.0
+DEBUG: Using Fallback logic for 2025-03-31 using previous period 2024-03-31
+DEBUG: Calculating Z-Score for 2023-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Common Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Treasury Stock', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Calculating Z-Score for 2024-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Common Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Treasury Stock', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Calculating Z-Score for 2025-03-31
+DEBUG: BS Keys: ['Treasury Shares Number', 'Ordinary Shares Number', 'Share Issued', 'Net Debt', 'Total Debt', 'Tangible Book Value', 'Invested Capital', 'Working Capital', 'Net Tangible Assets', 'Common Stock Equity', 'Total Capitalization', 'Total Equity Gross Minority Interest', 'Minority Interest', 'Stockholders Equity', 'Other Equity Interest', 'Treasury Stock', 'Retained Earnings', 'Additional Paid In Capital', 'Capital Stock', 'Common Stock']
+DEBUG: IS Keys: ['Tax Effect Of Unusual Items', 'Tax Rate For Calcs', 'Normalized EBITDA', 'Total Unusual Items', 'Total Unusual Items Excluding Goodwill', 'Net Income From Continuing Operation Net Minority Interest', 'Reconciled Depreciation', 'Reconciled Cost Of Revenue', 'EBITDA', 'EBIT', 'Net Interest Income', 'Interest Expense', 'Interest Income', 'Normalized Income', 'Net Income From Continuing And Discontinued Operation', 'Total Expenses', 'Rent Expense Supplemental', 'Diluted Average Shares', 'Basic Average Shares', 'Diluted EPS']
+DEBUG: Forensic Result Keys: dict_keys(['company_id', 'analysis_date', 'success', 'vertical_analysis', 'horizontal_analysis', 'financial_ratios', 'sloan_ratio', 'dechow_f_score', 'benford_analysis', 'altman_z_score', 'beneish_m_score', 'anomaly_detection', 'gst_reconciliation', 'contingent_liability_risk', 'greed_index'])
+DEBUG: Sloan Ratio in Forensic Result: {'success': True, 'sloan_analysis': {'2024-03-31': {'net_income': -72120000000.0, 'operating_cash_flow': -710000000.0, 'accruals': -71410000000.0, 'total_assets': 365540000000.0, 'sloan_ratio_pct': -19.54, 'risk_level': 'HIGH', 'interpretation': 'High probability of earnings manipulation (Estimated)'}, '2025-03-31': {'net_income': -93890000000.0, 'operating_cash_flow': -1680000000.0, 'accruals': -92210000000.0, 'total_assets': 364250000000.0, 'sloan_ratio_pct': -25.32, 'risk_level': 'HIGH', 'interpretation': 'High probability of earnings manipulation (Estimated)'}}, 'debug_log': ["Found periods: ['2023-03-31', '2024-03-31', '2025-03-31']"], 'analysis_date': '2026-02-13T20:57:01.331469'}
+Running Risk & Compliance Assessment...
+INFO:src.agents.forensic.agent3_risk_scoring:Calculating risk score for RCOM.NS
+INFO:src.agents.forensic.agent3_risk_scoring:Calculating risk score for RCOM.NS
+WARNING:src.agents.forensic.agent3_risk_scoring:No ratio data available for ROE calculation
+INFO:src.agents.forensic.agent4_compliance:Starting compliance validation for RCOM.NS
+INFO:src.agents.forensic.agent4_compliance:Starting compliance validation for RCOM.NS
+Generating Comprehensive Report...
+INFO:src.agents.forensic.agent5_reporting:Executive summary generated for RCOM.NS using key ending in ...z2tw
+INFO:src.agents.forensic.agent5_reporting:Report stored for RCOM.NS
+
+Report Generation SUCCESS!
+Report ID: report_RCOM.NS_20260213_205730
+Exported: /home/aditya/IRIS1/backend/reports/IRIS_Forensic_Audit_RCOM.NS_20260213_205730.pdf
