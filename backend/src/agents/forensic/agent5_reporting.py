@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 import os
 import base64
+from src.utils.gemini_client import GeminiClient
 
 from src.config import settings
 
@@ -90,66 +91,38 @@ class ReportingAgent:
         logger.info("Reporting Agent initialized")
 
     async def generate_executive_summary(self, company_symbol: str, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate executive summary using Gemini with key rotation"""
-        import google.generativeai as genai
-        from google.api_core import exceptions
+        """Generate executive summary using Gemini with centralized client"""
 
         # Prepare prompt for Gemini
         prompt = self._create_executive_summary_prompt(company_symbol, analysis_data)
         
-        last_error = None
-        
-        # Iterate through available keys
-        for key in settings.gemini_keys:
-            try:
-                # Configure with current key
-                genai.configure(api_key=key)
-                
-                # Initialize model
-                model = genai.GenerativeModel(
-                    model_name=settings.gemini_model_name,
-                    generation_config=genai.types.GenerationConfig(
-                        temperature=0.1,
-                        max_output_tokens=8192,
-                        top_p=0.9,
-                        top_k=40
-                    )
-                )
-                
-                # Call Gemini API
-                response = await asyncio.to_thread(model.generate_content, prompt)
+        try:
+            # Use centralized client
+            client = GeminiClient()
+            summary_text = await client.generate_content(prompt)
 
-                if response and response.text:
-                    summary_text = response.text.strip()
-
-                    # Structure the response
-                    executive_summary = {
-                        "success": True,
-                        "executive_summary": {
-                            "company_symbol": company_symbol,
-                            "generated_at": datetime.now().isoformat(),
-                            "summary_text": summary_text,
-                            "key_insights": self._extract_key_insights(summary_text),
-                            "risk_assessment": self._extract_risk_assessment(summary_text),
-                            "recommendations": self._extract_recommendations(summary_text)
-                        }
+            if summary_text:
+                # Structure the response
+                executive_summary = {
+                    "success": True,
+                    "executive_summary": {
+                        "company_symbol": company_symbol,
+                        "generated_at": datetime.now().isoformat(),
+                        "summary_text": summary_text,
+                        "key_insights": self._extract_key_insights(summary_text),
+                        "risk_assessment": self._extract_risk_assessment(summary_text),
+                        "recommendations": self._extract_recommendations(summary_text)
                     }
+                }
 
-                    logger.info(f"Executive summary generated for {company_symbol} using key ending in ...{key[-4:]}")
-                    return executive_summary
-                
-            except exceptions.ResourceExhausted as e:
-                logger.warning(f"Quota exceeded for key ...{key[-4:]}, trying next key")
-                last_error = e
-                continue
-            except Exception as e:
-                logger.warning(f"Error with key ...{key[-4:]}: {e}")
-                last_error = e
-                # If it's not a quota error, we might still want to try other keys just in case
-                continue
+                logger.info(f"Executive summary generated for {company_symbol}")
+                return executive_summary
+            
+            return {"success": False, "error": "Empty response from Gemini"}
 
-        logger.error(f"All Gemini keys failed. Last error: {last_error}")
-        return {"success": False, "error": f"All API keys failed. Last error: {str(last_error)}"}
+        except Exception as e:
+            logger.error(f"Executive summary generation failed: {e}")
+            return {"success": False, "error": str(e)}
 
     def _create_executive_summary_prompt(self, company_symbol: str, analysis_data: Dict[str, Any]) -> str:
         """Create prompt for Gemini executive summary"""
@@ -313,21 +286,55 @@ Please provide:
         """
         
         try:
-            # Configure with first available key
-            genai.configure(api_key=settings.gemini_api_key)
-            model = genai.GenerativeModel(settings.gemini_model_name)
-            
-            response = await asyncio.to_thread(model.generate_content, prompt)
+            # Use centralized client
+            client = GeminiClient()
+            response_text = await client.generate_content(prompt)
             
             return {
                 "success": True,
-                "rfi_draft": response.text.strip(),
+                "rfi_draft": response_text.strip(),
                 "target_committee": "Audit Committee",
-                "law_references": ["SEBI LODR Reg 23", "Companies Act Section 188"]
+                "law_references": ["SEBI LODR Reg 23", "Companies Act Section 188"],
+                "is_fallback": False
             }
         except Exception as e:
-            logger.error(f"RFI generation failed: {e}")
-            return {"success": False, "error": str(e)}
+            logger.error(f"RFI generation failed (using fallback): {e}")
+            
+            # Fallback Template
+            fallback_rfi = f"""
+To: Audit Committee and Board of Directors
+{company_symbol}
+
+Subject: URGENT: Request for Information regarding Potential Related Party Transaction Anomalies
+
+Dear Members of the Board,
+
+This communication is issued following an automated forensic analysis conducted by Project IRIS, which has identified potential irregularities in the financial data and related party disclosures of {company_symbol}.
+
+Specific areas of concern requiring immediate clarification include:
+1. Significant deviations in Related Party Transaction (RPT) volume relative to revenue.
+2. Unexplained fluctuations in key financial ratios that may indicate potential earnings management.
+
+In accordance with SEBI LODR Regulation 23 and Section 188 of the Companies Act, 2013, we request a detailed explanation of these transactions, including:
+- The commercial rationale for these transactions.
+- Evidence of arm's length pricing.
+- Approvals obtained from the Audit Committee and Shareholders (where applicable).
+
+Please provide the requested information within 15 days of receipt of this letter.
+
+Sincerely,
+Compliance Monitoring Team
+Project IRIS
+            """
+            
+            return {
+                "success": True,
+                "rfi_draft": fallback_rfi.strip(),
+                "target_committee": "Audit Committee",
+                "law_references": ["SEBI LODR Reg 23", "Companies Act Section 188"],
+                "is_fallback": True,
+                "error": str(e)
+            }
 
     def generate_forensic_report(self, company_symbol: str, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
         """Generate comprehensive forensic report"""

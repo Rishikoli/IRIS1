@@ -231,6 +231,10 @@ class ForensicAnalysisAgent:
             sloan_result = self.calculate_sloan_ratio(financial_statements)
             results["sloan_ratio"] = sloan_result
 
+            # Dechow F-Score
+            dechow_result = self.calculate_dechow_f_score(financial_statements)
+            results["dechow_f_score"] = dechow_result
+
             return results
 
         except Exception as e:
@@ -1146,9 +1150,9 @@ class ForensicAnalysisAgent:
                 sloan_pct = sloan_ratio * 100
                 
                 risk_level = "LOW"
-                if sloan_pct > 10 or sloan_pct < -10:
+                if sloan_pct > 10:
                      risk_level = "HIGH"
-                elif sloan_pct > 5 or sloan_pct < -5:
+                elif sloan_pct > 5:
                      risk_level = "MEDIUM"
                      
                 sloan_results[period] = {
@@ -1207,9 +1211,38 @@ class ForensicAnalysisAgent:
                 curr_data = statements_by_period[curr_period]
                 prev_data = statements_by_period[prev_period]
                 
-                # Helpers to extract data safely
+                # Helpers to extract data safely with multiple key variations
                 def get_val(data, type, field):
-                    return float(data.get(type, {}).get(field, 0))
+                    # 1. Try exact match (snake_case)
+                    val = data.get(type, {}).get(field)
+                    if val is not None: return float(val)
+                    
+                    # 2. Try Title Case (total_assets -> Total Assets)
+                    title_field = field.replace('_', ' ').title()
+                    val = data.get(type, {}).get(title_field)
+                    if val is not None: return float(val)
+                    
+                    # 3. Try specific mappings common in Yahoo Finance/Financial Modeling Prep
+                    mappings = {
+                        "accounts_receivable": ["Net Receivables", "Receivables"],
+                        "property_plant_equipment": ["Net PPE", "Property Plant And Equipment Net", "Net Tangible Assets"],
+                        "cash_and_equivalents": ["Cash And Cash Equivalents", "Cash"],
+                        "net_profit": ["Net Income", "Net Income Common Stockholders"],
+                        "total_revenue": ["Total Revenue", "Revenue"],
+                        "current_assets": ["Total Current Assets"],
+                        "current_liabilities": ["Total Current Liabilities"],
+                        "short_term_debt": ["Short Term Debt", "Current Debt"],
+                        "long_term_debt": ["Long Term Debt", "Total Non Current Liabilities Net Minority Interest"], # Proxy if needed
+                        "total_liabilities": ["Total Liabilities Net Minority Interest", "Total Liabilities"],
+                        "common_stock": ["Common Stock", "Share Issued"]
+                    }
+                    
+                    if field in mappings:
+                        for alt_key in mappings[field]:
+                             val = data.get(type, {}).get(alt_key)
+                             if val is not None: return float(val)
+                             
+                    return 0.0
                 
                 # 1. RSST Accruals
                 # Proxy: (Change in WC + Change in NCO + Change in FIN)

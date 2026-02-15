@@ -138,7 +138,6 @@ async def download_report_api(filename: str):
     """Download a generated report file"""
     try:
         # Construct file path - check multiple possible locations
-        # Construct file path - check multiple possible locations
         current_file = os.path.abspath(__file__)
         backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
         reports_dir = os.path.join(backend_root, "reports")

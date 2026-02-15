@@ -24,34 +24,67 @@ class GeminiRateLimiter:
                                generation_config: Optional[Any] = None) -> Any:
         last_error = None
         
-        # Try each key
-        for key in self.keys:
-            async with self.semaphores[key]:
-                # Implement a minimal delay to respect RPM even before hitting 429
-                elapsed = time.time() - self.last_call_time[key]
-                if elapsed < self.min_interval:
-                    await asyncio.sleep(self.min_interval - elapsed)
-                
-                try:
-                    genai.configure(api_key=key)
-                    model = genai.GenerativeModel(model_name, generation_config=generation_config)
-                    
-                    # Run the synchronous generate_content in a thread
-                    response = await asyncio.to_thread(func, model)
-                    
-                    self.last_call_time[key] = time.time()
-                    return response
-                except Exception as e:
-                    last_error = e
-                    error_msg = str(e)
-                    if "429" in error_msg or "Resource has been exhausted" in error_msg:
-                        logger.warning(f"Rate limit hit for key ending in ...{key[-4:]}, trying next key...")
-                        continue
-                    else:
-                        logger.error(f"Gemini error with key ending in ...{key[-4:]}: {error_msg}")
-                        continue
+        max_overall_retries = 5
+        current_retry = 0
         
-        raise last_error
+        while current_retry < max_overall_retries:
+            # Try each key in this attempt
+            explicit_retry_delay = 0.0
+            
+            for key in self.keys:
+                async with self.semaphores[key]:
+                    # Implement a minimal delay to respect RPM even before hitting 429
+                    elapsed = time.time() - self.last_call_time[key]
+                    if elapsed < self.min_interval:
+                        await asyncio.sleep(self.min_interval - elapsed)
+                    
+                    try:
+                        genai.configure(api_key=key)
+                        model = genai.GenerativeModel(model_name, generation_config=generation_config)
+                        
+                        try:
+                            # Run the synchronous generate_content in a thread
+                            response = await asyncio.to_thread(func, model)
+                            return response
+                        finally:
+                            self.last_call_time[key] = time.time()
+                    except Exception as e:
+                        error_msg = str(e)
+                        if "429" in error_msg or "Resource has been exhausted" in error_msg:
+                            logger.warning(f"Rate limit hit for key ending in ...{key[-4:]}")
+                            
+                            # Try to extract retry delay from error message
+                            import re
+                            # Match variants like "retry in 8.97s" or "after 8s"
+                            match = re.search(r"retry (?:in|after) (\d+(\.\d+)?)s?", error_msg)
+                            if match:
+                                delay = float(match.group(1))
+                                explicit_retry_delay = max(explicit_retry_delay, delay)
+                                
+                            continue # Try next key
+                        else:
+                            # Non-retriable error
+                            logger.error(f"Gemini error with key ending in ...{key[-4:]}: {error_msg}")
+                            raise e
+
+            # If we are here, it means all keys failed with 429 (or were skipped) in this pass
+            current_retry += 1
+            if current_retry < max_overall_retries:
+                # Calculate wait time:
+                # 1. Use explicit delay if server provided it (plus buffer)
+                # 2. Otherwise use exponential backoff: 10s, 20s, 40s...
+                
+                if explicit_retry_delay > 0:
+                    wait_time = explicit_retry_delay + 2.0 # 2s buffer
+                    logger.warning(f"Server requested wait. Sleeping {wait_time:.2f}s before retry {current_retry}/{max_overall_retries}...")
+                else:
+                    wait_time = 10.0 * (2 ** (current_retry - 1))
+                    logger.warning(f"Exponential backoff. Sleeping {wait_time:.2f}s before retry {current_retry}/{max_overall_retries}...")
+                
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error("Max retries exceeded. All keys rate limited.")
+                raise Exception("Gemini API rate limit exceeded on all keys after retries.")
 
 # Global rate limiter instance
 from src.config import settings

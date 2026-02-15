@@ -4,7 +4,7 @@ from pytrends.request import TrendReq
 import requests
 from bs4 import BeautifulSoup
 from typing import Dict, Any, List
-import google.generativeai as genai
+# import google.generativeai as genai # REMOVED
 from transformers import pipeline
 from src.config import settings
 
@@ -17,7 +17,7 @@ class MarketSentimentAgent:
 
     def __init__(self):
         self.pytrends = TrendReq(hl='en-US', tz=360)
-        self._initialize_gemini()
+        # self._initialize_gemini() # REMOVED
         self._initialize_finbert()
 
     def _initialize_finbert(self):
@@ -29,19 +29,9 @@ class MarketSentimentAgent:
             logger.error(f"Failed to initialize FinBERT: {str(e)}")
             self.finbert = None
 
-    def _initialize_gemini(self):
-        """Initialize Google Gemini API"""
-        try:
-            if not settings.gemini_api_key:
-                logger.warning("GEMINI_API_KEY not found in settings")
-                return
-
-            genai.configure(api_key=settings.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel(settings.gemini_model_name)
-            logger.info("Gemini model initialized for sentiment analysis")
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini: {str(e)}")
-            self.gemini_model = None
+    # def _initialize_gemini(self):
+    #     """Initialize Google Gemini API (DEPRECATED)"""
+    #     pass
 
     async def get_sentiment_analysis(self, company_symbol: str) -> Dict[str, Any]:
         """

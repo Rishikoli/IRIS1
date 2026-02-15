@@ -21,6 +21,9 @@ import { AlertTriangle, Search, ShieldCheck, FileText, BarChart3, PieChart, Acti
 import { ThemeToggle } from "@/components/ThemeToggle";
 import TextTicker from "@/components/TextTicker";
 import ForensicFormulasModal from "@/components/ForensicFormulasModal";
+import dynamic from 'next/dynamic';
+
+const DechowFScoreChart = dynamic(() => import('@/components/charts/DechowFScoreChart'), { ssr: false });
 
 export default function IRISAnalyticsDashboard() {
   const router = useRouter();
@@ -403,7 +406,7 @@ export default function IRISAnalyticsDashboard() {
         const newReports = exportsList.map((exportItem: any) => {
           const exportInfo = exportItem.export_info || exportItem;
           return {
-            format: exportInfo.format,
+            format: exportInfo.format || 'unknown',
             filename: exportInfo.filename,
             fileSize: exportInfo.file_size,
             wordCount: data.report_metadata?.word_count || 'N/A',
@@ -412,6 +415,10 @@ export default function IRISAnalyticsDashboard() {
         });
 
         setGeneratedReports(prev => [...prev, ...newReports]);
+
+        // User Feedback
+        const filenames = newReports.map((r: any) => r.filename).join(', ');
+        alert(`Reports generated successfully!\n\nFiles:\n${filenames}\n\nThey are listed in the 'Recent Reports' section below.`);
 
         console.log('Reports generated successfully:', data);
       } else {
@@ -428,7 +435,7 @@ export default function IRISAnalyticsDashboard() {
   // Download report function
   const downloadReport = async (filename: string) => {
     try {
-      const response = await fetch(`/api/reports/download?filename=${encodeURIComponent(filename)}`);
+      const response = await fetch(`/api/reports/download/${encodeURIComponent(filename)}`);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
@@ -1450,43 +1457,7 @@ export default function IRISAnalyticsDashboard() {
                     </button>
                   </div>
 
-                  {/* Enforcement RFI Card */}
-                  <div className="neumorphic-card rounded-2xl p-6" style={{
-                    background: 'var(--card)',
-                    boxShadow: '8px 8px 16px rgba(0,0,0,0.1), -8px -8px 16px rgba(255,255,255,0.9)',
-                    border: '2px solid rgba(220, 38, 38, 0.4)'
-                  }}>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center animate-pulse">
-                        <AlertTriangle className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-lg" style={{ color: 'var(--foreground)' }}>Enforcement RFI</h3>
-                        <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Draft Legal Notice</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={generateRFI}
-                      disabled={isGeneratingRfi}
-                      className="w-full px-4 py-3 rounded-xl font-semibold transition-all neumorphic-button"
-                      style={{
-                        background: isGeneratingRfi ? 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)' : 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
-                        boxShadow: '6px 6px 12px rgba(220, 38, 38, 0.3), -6px -6px 12px rgba(255, 255, 255, 0.8)',
-                        color: '#fff',
-                        cursor: isGeneratingRfi ? 'not-allowed' : 'pointer',
-                        opacity: isGeneratingRfi ? 0.7 : 1
-                      }}
-                    >
-                      {isGeneratingRfi ? (
-                        <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Drafting...
-                        </div>
-                      ) : (
-                        '⚖️ Draft RFI Letter'
-                      )}
-                    </button>
-                  </div>
+
                 </div>
 
                 {/* Recent Reports */}
@@ -1514,8 +1485,8 @@ export default function IRISAnalyticsDashboard() {
                                 )}
                               </div>
                               <div>
-                                <p className="font-bold" style={{ color: 'var(--foreground)' }}>
-                                  {report.format.toUpperCase()} Report
+                                <p className="font-semibold" style={{ color: 'var(--foreground)' }}>
+                                  {(report.format || 'unknown').toUpperCase()} Report
                                 </p>
                                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
                                   {new Date(report.generatedAt).toLocaleDateString()}
@@ -1869,6 +1840,18 @@ export default function IRISAnalyticsDashboard() {
                     </button>
                   </div>
                 </div>
+
+                {/* Dechow F-Score Analysis Section */}
+                <div className="mb-6">
+                  <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
+                    background: 'var(--card)', color: 'var(--foreground)',
+                    backdropFilter: 'blur(15px)',
+                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
+                    border: '2px solid rgba(245, 158, 11, 0.2)'
+                  }}>
+                    <DechowFScoreChart data={analysisData} />
+                  </div>
+                </div>
               </>
             ) : null
           }
@@ -2027,7 +2010,7 @@ export default function IRISAnalyticsDashboard() {
 
 
         </div >
-      </div >
+      </div>
 
 
 

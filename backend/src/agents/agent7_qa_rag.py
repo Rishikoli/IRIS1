@@ -13,7 +13,7 @@ import hashlib
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
-import google.generativeai as genai
+# import google.generativeai as genai # REMOVED: Using GeminiClient
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
@@ -29,13 +29,13 @@ class QASystem:
         self.chroma_client = None
         self.collection = None
         self.embedding_model = None
-        self.gemini_model = None
+        # self.gemini_model = None # REMOVED: Using GeminiClient
         self.sentiment_pipeline = None
 
         # Initialize components
         self._initialize_chroma()
         self._initialize_embedding_model()
-        self._initialize_gemini()
+        # self._initialize_gemini() # REMOVED: Using GeminiClient
         self._initialize_finbert()
 
         logger.info("Q&A RAG System initialized successfully")
@@ -106,25 +106,9 @@ class QASystem:
             logger.error(f"Embedding model initialization failed: {e}")
             raise
 
-    def _initialize_gemini(self):
-        """Initialize Gemini 2.0 model"""
-        try:
-            genai.configure(api_key=settings.gemini_api_key)
-            self.gemini_model = genai.GenerativeModel(
-                model_name=settings.gemini_model_name,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.1,
-                    max_output_tokens=2048,
-                    top_p=0.9,
-                    top_k=40
-                )
-            )
-
-            logger.info("Gemini 2.0 model initialized successfully")
-
-        except Exception as e:
-            logger.error(f"Gemini model initialization failed: {e}")
-            raise
+    # def _initialize_gemini(self):
+    #     """Initialize Gemini 2.0 model (DEPRECATED: Using GeminiClient)"""
+    #     pass
 
     def add_document(self, document_id: str, text: str, metadata: Dict[str, Any] = None) -> bool:
         """Add document to vector database"""

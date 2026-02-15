@@ -58,6 +58,43 @@ One-click generation of:
 ![System Architecture](assets/Architecture_iris1.svg)
 
 
+```mermaid
+graph TD
+    subgraph Experience["1. Experience Layer (Frontend)"]
+        NextJS["Next.js 14"]
+        Tailwind["Tailwind CSS + Shadcn/UI"]
+        Viz["Recharts & React Flow"]
+    end
+
+    subgraph Orchestration["2. Orchestration Layer (Backend)"]
+        FastAPI["FastAPI"]
+        Agents["Custom Agent Loop"]
+        Pandas["Pandas & NumPy"]
+    end
+
+    subgraph Intelligence["3. Intelligence Layer (AI)"]
+        Gemini["Google Gemini 2.5 Flash"]
+        NetworkX["NetworkX"]
+        SkLearn["Scikit-Learn"]
+    end
+
+    subgraph Data["4. Data Layer (Persistence)"]
+        Postgres["PostgreSQL (Supabase)"]
+        Chroma["ChromaDB"]
+        Redis["Redis"]
+    end
+
+    NextJS --> FastAPI
+    FastAPI --> Agents
+    Agents --> Gemini
+    Agents --> NetworkX
+    Agents --> SkLearn
+    Agents --> Postgres
+    Agents --> Chroma
+    Agents --> Redis
+```
+
+
 IRIS implements a **Micro-Agent Architecture** to ensure scalability and fault tolerance.
 
 ### Frontend Layer

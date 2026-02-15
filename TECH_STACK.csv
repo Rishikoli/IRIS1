@@ -1,0 +1,5 @@
+Category,Technology Stack,Key Components,Justification
+Core AI & Logic,"Python, FastAPI, LangChain, Google Gemini Pro, FinBERT","Agent Orchestration, Cognitive Engine, Sentiment Analysis","High-performance async backend with state-of-the-art LLM reasoning."
+Data & Storage,"PostgreSQL, ChromaDB, Redis","Relational DB, Vector DB, Caching","Hybrid storage for structured data and semantic embeddings (RAG)."
+Frontend & UI,"React (Next.js), Tailwind CSS, Recharts","User Interface, Styling, Visualization","Responsive, SEO-friendly dashboard with diverse charting capabilities."
+Data Pipeline,"yfinance, Alpha Vantage, Celery, PDF Plumber","Market Feeds, Async Tasks, Document Parsing","Robust ingestion of live market data and unstructured financial reports."
