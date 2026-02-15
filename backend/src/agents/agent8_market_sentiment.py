@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from typing import Dict, Any, List
 # import google.generativeai as genai # REMOVED
 from transformers import pipeline
+import asyncio
 from src.config import settings
 
 # Configure logging
@@ -35,14 +36,36 @@ class MarketSentimentAgent:
 
     async def get_sentiment_analysis(self, company_symbol: str) -> Dict[str, Any]:
         """
-        Perform comprehensive market sentiment analysis
+        Perform comprehensive market sentiment analysis with robustness
         """
         try:
-            # 1. Get Google Trends Data
-            trends_data = self._get_google_trends(company_symbol)
-            
-            # 2. Get News Sentiment
-            news_data = await self._get_news_sentiment(company_symbol)
+            # 1. Get Google Trends Data (with fallback & timeout)
+            try:
+                # Run sync pytrends in thread with timeout
+                trends_data = await asyncio.wait_for(
+                    asyncio.to_thread(self._get_google_trends, company_symbol),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"Google Trends timed out for {company_symbol}")
+                trends_data = {"status": "error", "message": "Google Trends timed out", "data": []}
+            except Exception as e:
+                logger.error(f"Google Trends failed: {e}")
+                trends_data = {"status": "error", "message": str(e), "data": []}
+
+            # 2. Get News Sentiment (with fallback)
+            try:
+                # _get_news_sentiment is already async, just ensure it doesn't hang indefinitely
+                news_data = await asyncio.wait_for(
+                    self._get_news_sentiment(company_symbol),
+                    timeout=10.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"News sentiment timed out for {company_symbol}")
+                news_data = {"status": "error", "message": "News analysis timed out", "sentiment": "neutral"}
+            except Exception as e:
+                logger.error(f"News sentiment failed: {e}")
+                news_data = {"status": "error", "message": str(e), "sentiment": "neutral"}
             
             return {
                 "company": company_symbol,
@@ -51,10 +74,13 @@ class MarketSentimentAgent:
                 "overall_sentiment": self._calculate_overall_sentiment(trends_data, news_data)
             }
         except Exception as e:
-            logger.error(f"Error in sentiment analysis: {str(e)}")
+            logger.error(f"Critical error in sentiment analysis: {str(e)}")
             return {
                 "error": str(e),
-                "company": company_symbol
+                "company": company_symbol,
+                "trends": {"status": "error", "data": []},
+                "news_sentiment": {"status": "error", "sentiment": "neutral"},
+                "overall_sentiment": "Neutral"
             }
 
     def _get_google_trends(self, keyword: str) -> Dict[str, Any]:
@@ -63,8 +89,13 @@ class MarketSentimentAgent:
             # Clean keyword (remove .NS, .BO suffix for better trends results)
             search_term = keyword.split('.')[0]
             
-            self.pytrends.build_payload([search_term], cat=0, timeframe='today 1-m', geo='IN', gprop='')
-            interest_over_time_df = self.pytrends.interest_over_time()
+            # Using try-except block specifically for PyTrends as it's prone to 429 errors
+            try:
+                self.pytrends.build_payload([search_term], cat=0, timeframe='today 1-m', geo='IN', gprop='')
+                interest_over_time_df = self.pytrends.interest_over_time()
+            except Exception as e:
+                logger.warning(f"Google Trends API failed (likely rate limit): {e}")
+                return {"status": "error", "message": "Google Trends rate limit exceeded", "data": []}
             
             if interest_over_time_df.empty:
                 return {"status": "no_data", "data": []}
@@ -72,9 +103,13 @@ class MarketSentimentAgent:
             # Convert to list of dicts for frontend
             data = []
             for date, row in interest_over_time_df.iterrows():
+                try:
+                    val = int(row[search_term])
+                except:
+                    val = 0
                 data.append({
                     "date": date.strftime('%Y-%m-%d'),
-                    "interest": int(row[search_term])
+                    "interest": val
                 })
             
             # Calculate trend direction
@@ -90,7 +125,7 @@ class MarketSentimentAgent:
                 "trend_direction": trend_direction
             }
         except Exception as e:
-            logger.error(f"Google Trends error: {str(e)}")
+            logger.error(f"Google Trends general error: {str(e)}")
             return {"status": "error", "message": str(e)}
 
     async def _get_news_sentiment(self, keyword: str) -> Dict[str, Any]:
@@ -99,30 +134,52 @@ class MarketSentimentAgent:
             search_term = keyword.split('.')[0]
             # Use Google News RSS
             url = f"https://news.google.com/rss/search?q={search_term}+finance+india&hl=en-IN&gl=IN&ceid=IN:en"
+            logger.info(f"Fetching news from: {url}")
             
             # Use run_in_executor for blocking requests call
             import asyncio
-            response = await asyncio.to_thread(requests.get, url)
+            try:
+                # Add timeout to prevent hanging
+                response = await asyncio.to_thread(requests.get, url, timeout=10)
+                response.raise_for_status()
+            except Exception as req_err:
+                logger.error(f"Failed to fetch news RSS: {req_err}")
+                return {"status": "error", "message": f"News fetch failed: {str(req_err)}", "sentiment": "neutral"}
+
             soup = BeautifulSoup(response.content, features="xml")
             
             items = soup.findAll('item')[:10] # Top 10 news items
             headlines = []
             
             for item in items:
-                headlines.append({
-                    "title": item.title.text,
-                    "link": item.link.text,
-                    "pubDate": item.pubDate.text
-                })
+                try:
+                    headlines.append({
+                        "title": item.title.text,
+                        "link": item.link.text,
+                        "pubDate": item.pubDate.text if item.pubDate else ""
+                    })
+                except Exception as parse_err:
+                    logger.warning(f"Error parsing news item: {parse_err}")
+                    continue
             
             if not headlines:
                 return {"status": "no_news", "sentiment": "neutral"}
 
+            logger.info(f"Analying {len(headlines)} headlines for {keyword}")
+
             # Analyze sentiment using Gemini
-            sentiment_result = await self._analyze_headlines_with_gemini(headlines)
+            try:
+                sentiment_result = await self._analyze_headlines_with_gemini(headlines)
+            except Exception as e:
+                logger.error(f"Gemini analysis validation failed: {e}")
+                sentiment_result = {"score": 0, "label": "Error", "summary": "Analysis failed"}
             
             # Analyze sentiment using FinBERT
-            finbert_result = self._analyze_headlines_with_finbert(headlines)
+            try:
+                finbert_result = self._analyze_headlines_with_finbert(headlines)
+            except Exception as e:
+                 logger.error(f"FinBERT analysis validation failed: {e}")
+                 finbert_result = {"score": 0, "label": "Error", "breakdown": {}}
 
             return {
                 "status": "success",
@@ -131,7 +188,9 @@ class MarketSentimentAgent:
                 "finbert_analysis": finbert_result
             }
         except Exception as e:
-            logger.error(f"News scraping error: {str(e)}")
+            logger.error(f"News analysis process error: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {"status": "error", "message": str(e)}
 
     async def _analyze_headlines_with_gemini(self, headlines: List[Dict]) -> Dict[str, Any]:

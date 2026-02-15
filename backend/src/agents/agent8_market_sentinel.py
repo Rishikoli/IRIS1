@@ -88,9 +88,6 @@ class MarketSentinelAgent:
         ema_12 = close.ewm(span=12, adjust=False).mean().iloc[-1]
         ema_26 = close.ewm(span=26, adjust=False).mean().iloc[-1]
         
-        # Moving Average Convergence Divergence (MACD)
-        # macd_line = ema_12 - ema_26
-        
         # Volume Moving Average (20 days)
         vol_ma_20 = volume.rolling(window=20).mean().iloc[-1]
         
@@ -101,16 +98,21 @@ class MarketSentinelAgent:
         rs = gain / loss
         rsi_14 = 100 - (100 / (1 + rs)).iloc[-1]
         
+        def safe_float(val):
+            if pd.isna(val) or np.isnan(val):
+                return None
+            return float(val)
+            
         return {
-            "current_price": float(close.iloc[-1]),
-            "prev_close": float(close.iloc[-2]),
-            "sma_20": float(sma_20),
-            "sma_50": float(sma_50),
-            "ema_12": float(ema_12),
-            "ema_26": float(ema_26),
-            "rsi_14": float(rsi_14) if not pd.isna(rsi_14) else 50.0,
+            "current_price": safe_float(close.iloc[-1]),
+            "prev_close": safe_float(close.iloc[-2]),
+            "sma_20": safe_float(sma_20),
+            "sma_50": safe_float(sma_50),
+            "ema_12": safe_float(ema_12),
+            "ema_26": safe_float(ema_26),
+            "rsi_14": safe_float(rsi_14) if not pd.isna(rsi_14) else 50.0,
             "current_volume": int(volume.iloc[-1]),
-            "avg_volume_20": int(vol_ma_20)
+            "avg_volume_20": int(vol_ma_20) if not pd.isna(vol_ma_20) else 0
         }
 
     def _detect_pump_and_dump(self, data: pd.DataFrame, indicators: Dict[str, Any]) -> Dict[str, Any]:

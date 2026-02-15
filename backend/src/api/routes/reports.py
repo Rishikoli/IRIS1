@@ -191,30 +191,34 @@ async def generate_rfi_api(request: Dict[str, Any]):
     """Generate an Enforcement RFI letter"""
     try:
         company_symbol = request.get('company_symbol')
+        findings = request.get('findings')
+
         if not company_symbol:
             raise HTTPException(status_code=400, detail="Company symbol is required")
 
-        # 1. Get forensic data (findings)
-        try:
-            ingestion_result = await ingest_company_data(company_symbol)
-            financial_statements = ingestion_result["financial_statements"]
-            forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
-        except Exception as e:
-            logger.error(f"Failed to get forensic data for RFI: {e}")
-            raise HTTPException(status_code=500, detail="Could not retrieve forensic findings")
-
-        if not forensic_result.get('success'):
-             raise HTTPException(status_code=404, detail="Forensic analysis failed")
-
-        # 2. Extract key findings for the RFI
-        # We'll use specific anomalies or risk factors if available, otherwise general findings
-        findings = []
-        if 'anomaly_detection' in forensic_result:
-             findings.extend(forensic_result['anomaly_detection'].get('anomalies', []))
-        
-        # If no specific anomalies, use high-level metrics as "findings"
+        # 1. Get forensic data (findings) if not provided
         if not findings:
-             findings.append({"observation": "General forensic review initiated"})
+            logger.info(f"No findings provided for RFI {company_symbol}, running analysis...")
+            try:
+                ingestion_result = await ingest_company_data(company_symbol)
+                financial_statements = ingestion_result["financial_statements"]
+                forensic_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+                
+                if not forensic_result.get('success'):
+                     raise HTTPException(status_code=404, detail="Forensic analysis failed")
+
+                # Extract findings
+                findings = []
+                if 'anomaly_detection' in forensic_result:
+                     findings.extend(forensic_result['anomaly_detection'].get('anomalies', []))
+            except Exception as e:
+                logger.error(f"Failed to get forensic data for RFI: {e}")
+                # Don't fail completely, try to generate generic RFI
+                findings = [{"observation": "Automated forensic review initiated due to potential risk indicators."}]
+
+        # Ensure we have a list
+        if not findings or not isinstance(findings, list):
+             findings = [{"observation": "General forensic review initiated"}]
 
         # 3. Generate RFI using Agent 5
         rfi_result = await reporting_agent.generate_enforcement_rfi(company_symbol, findings)
@@ -228,4 +232,7 @@ async def generate_rfi_api(request: Dict[str, Any]):
         raise
     except Exception as e:
         logger.error(f"Error generating RFI: {e}")
+        import traceback
+        traceback.print_exc()
+        print(f"CRITICAL ERROR in RFI Generation: {e}")
         raise HTTPException(status_code=500, detail=str(e))

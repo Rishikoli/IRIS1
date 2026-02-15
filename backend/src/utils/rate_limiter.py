@@ -24,7 +24,7 @@ class GeminiRateLimiter:
                                generation_config: Optional[Any] = None) -> Any:
         last_error = None
         
-        max_overall_retries = 5
+        max_overall_retries = 2
         current_retry = 0
         
         while current_retry < max_overall_retries:
@@ -72,13 +72,13 @@ class GeminiRateLimiter:
             if current_retry < max_overall_retries:
                 # Calculate wait time:
                 # 1. Use explicit delay if server provided it (plus buffer)
-                # 2. Otherwise use exponential backoff: 10s, 20s, 40s...
+                # 2. Otherwise use exponential backoff: 1s, 2s... (Reduced for interactive)
                 
                 if explicit_retry_delay > 0:
-                    wait_time = explicit_retry_delay + 2.0 # 2s buffer
+                    wait_time = min(explicit_retry_delay + 1.0, 5.0) # Cap at 5s
                     logger.warning(f"Server requested wait. Sleeping {wait_time:.2f}s before retry {current_retry}/{max_overall_retries}...")
                 else:
-                    wait_time = 10.0 * (2 ** (current_retry - 1))
+                    wait_time = min(1.0 * (2 ** (current_retry - 1)), 5.0) # Cap at 5s
                     logger.warning(f"Exponential backoff. Sleeping {wait_time:.2f}s before retry {current_retry}/{max_overall_retries}...")
                 
                 await asyncio.sleep(wait_time)

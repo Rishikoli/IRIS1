@@ -620,10 +620,14 @@ async def download_report(filename: str):
     """Download a generated report file"""
     try:
         # Construct file path
-        file_path = f"/home/aditya/I.R.I.S./backend/reports/{filename}"
+        import os
+        current_file = os.path.abspath(__file__)
+        # backend/src/api/routes/forensic.py -> backend/
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+        reports_dir = os.path.join(backend_root, "reports")
+        file_path = os.path.join(reports_dir, filename)
 
         # Check if file exists
-        import os
         if not os.path.exists(file_path):
             raise HTTPException(
                 status_code=404,

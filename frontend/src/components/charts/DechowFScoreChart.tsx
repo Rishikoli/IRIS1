@@ -24,7 +24,8 @@ export default function DechowFScoreChart({ data }: DechowFScoreChartProps) {
 
     // Get latest period data
     const latestData = history.length > 0 ? history[history.length - 1] : null;
-    const probability = latestData ? latestData.f_score : 0; // 0 to 1
+    const rawProb = latestData ? Number(latestData.f_score) : 0;
+    const probability = isNaN(rawProb) ? 0 : rawProb;
     const probPct = probability * 100;
 
     // Variables for display
@@ -260,38 +261,7 @@ export default function DechowFScoreChart({ data }: DechowFScoreChartProps) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Component Breakdown Table */}
-                <div className="neumorphic-card rounded-2xl p-6">
-                    <h4 className="text-lg font-bold text-slate-700 mb-4">Model Components</h4>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-50 text-slate-500 font-medium">
-                                <tr>
-                                    <th className="p-3 rounded-l-lg">Component</th>
-                                    <th className="p-3 text-right rounded-r-lg">Coefficient Value</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {components && Object.entries(components).map(([key, rawVal]: [string, any]) => {
-                                    const val = Number(rawVal);
-                                    return (
-                                        <tr key={key} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="p-3 font-semibold text-slate-700">{componentLabels[key] || key}</td>
-                                            <td className="p-3 text-right font-mono font-bold text-slate-700">
-                                                {val.toFixed(3)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="mt-4 p-4 bg-slate-50 rounded-xl text-xs text-slate-500">
-                        <strong>Note:</strong> Higher values for Accruals, Receivables, Inventory, and Soft Assets generally increase risk.
-                    </div>
-                </div>
-
+            <div className="w-full">
                 {/* Historical Trend */}
                 <div className="neumorphic-card rounded-2xl p-6 flex flex-col">
                     <h4 className="text-lg font-bold text-slate-700 mb-4">Probability Trend</h4>

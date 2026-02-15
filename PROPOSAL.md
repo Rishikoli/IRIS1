@@ -11,6 +11,17 @@ Manual audits cannot keep up with the massive volume of daily financial data. Cu
 ### 1.3 Latency in Detection
 Regulatory insights often lag by weeks. Real-time detection is critical to stop fraudulent schemes before they scale and harm investors.
 
+### 1.4 Need of the Project (The Fraud Prevention Imperative)
+
+**1. Preventing "Satyam-Style" Accounting Fraud**
+Satyam-style scams thrive on loopholes in manual audits. IRIS closes this gap by automating forensic cross-verification—instantly matching reported cash flows against bank statements to catch accounting fabrications in real-time.
+
+**2. Scaling SEBI's Surveillance Capabilities**
+SEBI oversees thousands of entities with finite manpower. IRIS serves as a scalable force multiplier, autonomously scanning millions of transactions to detect subtle manipulation patterns, like circular trading, that escape human scrutiny.
+
+**3. Conquering Information Overload**
+Analysts face a deluge of disjointed data—from filings to real-time news. The critical need is for an intelligent system that synthesizes this chaos into a coherent, actionable narrative, enabling informed decision-making at speed.
+
 ## 2. Solution: IRIS (Intelligent Regulatory Insight System)
 
 ### 2.1 Collaborative AI Agents

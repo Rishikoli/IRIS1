@@ -73,12 +73,12 @@ export default function IRISAnalyticsDashboard() {
       const companySymbol = selectedCompany.trim();
 
       // Call forensic analysis API
-      const response = await fetch(`/api/forensic-analysis`, {
+      const response = await fetch(`/api/forensic/${companySymbol}`, { // Fixed endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ symbol: companySymbol }),
+        body: JSON.stringify({}), // Body not required but kept valid JSON
       });
 
       if (!response.ok) {
@@ -403,7 +403,16 @@ export default function IRISAnalyticsDashboard() {
         // Backend returns exports directly in the response root
         const exportsList = data.exports ? Object.values(data.exports) : [];
 
-        const newReports = exportsList.map((exportItem: any) => {
+        // Filter out failed exports
+        const successfulExports = exportsList.filter((item: any) => item.success);
+        const failedExports = exportsList.filter((item: any) => !item.success);
+
+        if (failedExports.length > 0) {
+          console.error('Some reports failed to generate:', failedExports);
+          // Optional: Show a more user-friendly notification
+        }
+
+        const newReports = successfulExports.map((exportItem: any) => {
           const exportInfo = exportItem.export_info || exportItem;
           return {
             format: exportInfo.format || 'unknown',
@@ -417,8 +426,12 @@ export default function IRISAnalyticsDashboard() {
         setGeneratedReports(prev => [...prev, ...newReports]);
 
         // User Feedback
-        const filenames = newReports.map((r: any) => r.filename).join(', ');
-        alert(`Reports generated successfully!\n\nFiles:\n${filenames}\n\nThey are listed in the 'Recent Reports' section below.`);
+        if (newReports.length > 0) {
+          const filenames = newReports.map((r: any) => r.filename).join(', ');
+          alert(`Reports generated successfully!\n\nFiles:\n${filenames}\n\nThey are listed in the 'Recent Reports' section below.`);
+        } else if (failedExports.length === exportsList.length && exportsList.length > 0) {
+          throw new Error('All requested reports failed to generate.');
+        }
 
         console.log('Reports generated successfully:', data);
       } else {
@@ -471,13 +484,17 @@ export default function IRISAnalyticsDashboard() {
     setError(null);
 
     try {
+      // Extract findings from analysis data to speed up RFI generation
+      const findings = analysisData.anomaly_detection?.anomalies || [];
+
       const response = await fetch('/api/reports/rfi', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          company_symbol: selectedCompany
+          company_symbol: selectedCompany,
+          findings: findings
         }),
       });
 
