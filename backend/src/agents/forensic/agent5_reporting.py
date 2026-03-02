@@ -762,16 +762,23 @@ Project IRIS
                 v_data = [["Regulation", "Severity", "Description", "Reference"]]
                 
                 for v in violations[:15]: # Limit to top 15
-                    # Handle text wrapping for description
-                    desc_text = v.get('violation_description', 'No description')
+                    # Handle both dict and ComplianceViolation dataclass objects
+                    def _vget(field, default=''):
+                        if isinstance(v, dict):
+                            return v.get(field, default)
+                        val = getattr(v, field, default)
+                        # Unwrap Enum values
+                        return val.value if hasattr(val, 'value') else (val or default)
+                    
+                    desc_text = str(_vget('violation_description', 'No description'))
                     if len(desc_text) > 150:
                         desc_text = desc_text[:147] + "..."
                         
                     v_data.append([
-                        Paragraph(v.get('rule_id', 'Unknown'), styles['NormalSmall']),
-                        Paragraph(v.get('severity', 'medium').upper(), styles['NormalSmall']),
+                        Paragraph(str(_vget('rule_id', 'Unknown')), styles['NormalSmall']),
+                        Paragraph(str(_vget('severity', 'medium')).upper(), styles['NormalSmall']),
                         Paragraph(desc_text, styles['NormalSmall']),
-                        Paragraph(v.get('regulatory_reference', 'N/A'), styles['NormalSmall'])
+                        Paragraph(str(_vget('regulatory_reference', 'N/A')), styles['NormalSmall'])
                     ])
 
                 # Adjust column widths for better layout

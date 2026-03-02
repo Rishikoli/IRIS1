@@ -40,9 +40,16 @@ export default function FinancialRatiosChart({ data }: FinancialRatiosChartProps
       if (data.financial_ratios[year]) {
         Object.keys(data.financial_ratios[year]).forEach(ratio => {
           if (!ratiosData[ratio]) ratiosData[ratio] = [];
+
+          let rawVal = data.financial_ratios[year][ratio];
+          let parsedVal = parseFloat(rawVal);
+          if (rawVal === null || rawVal === undefined || isNaN(parsedVal)) {
+            parsedVal = 0;
+          }
+
           ratiosData[ratio].push({
             year: year,
-            value: parseFloat(data.financial_ratios[year][ratio]) || 0
+            value: parsedVal
           });
         });
       }

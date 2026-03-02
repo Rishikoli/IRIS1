@@ -4,9 +4,11 @@ All forensic analysis endpoints including ratios, Z-Score, M-Score, etc.
 """
 
 import logging
+import math
 import redis
 from cachetools import TTLCache
 import time
+import traceback
 from typing import Dict, Any, Optional
 import numpy as np
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -189,94 +191,125 @@ async def ingest_company_data(company_symbol: str):
         raise
     except Exception as e:
         logger.error(f"❌ Error ingesting data for {company_symbol}: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Data ingestion failed: {str(e)}")
 
 
+
 async def _fetch_yahoo_finance_data(company_symbol: str) -> list:
-    """Fetch real financial data from Yahoo Finance with multiple symbol formats"""
-    try:
-        import yfinance as yf
+    """Fetch real financial data from Yahoo Finance — parallel symbol + property fetching."""
+    import yfinance as yf
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
 
-        # Try different symbol formats for Indian stocks
-        symbol_formats = [
-            f"{company_symbol}.NS",      # NSE format
-            f"{company_symbol}.BO",      # BSE format
-            f"{company_symbol}.NSE",     # Alternative NSE format
-            company_symbol,              # Just the symbol
-        ]
+    # Normalize: strip exchange suffixes so 'TCS.NS' → 'TCS'
+    base_symbol = company_symbol.upper()
+    for suffix in ['.NS', '.BO', '.NSE', '.BSE']:
+        if base_symbol.endswith(suffix):
+            base_symbol = base_symbol[:-len(suffix)]
+            break
 
-        financial_statements = []
+    symbol_formats = [
+        f"{base_symbol}.NS",   # NSE (most Indian large-caps)
+        f"{base_symbol}.BO",   # BSE fallback
+        base_symbol,           # plain (global stocks)
+    ]
 
-        for symbol_format in symbol_formats:
-            try:
-                logger.info(f"Trying Yahoo Finance symbol: {symbol_format}")
-                ticker = yf.Ticker(symbol_format)
+    def fetch_one_symbol(symbol: str):
+        """Fetch all 3 financial statements for a symbol sequentially."""
+        try:
+            # Do NOT pass a custom session — yfinance v1.1 manages its own curl_cffi
+            # session internally with proper browser impersonation.
+            ticker = yf.Ticker(symbol)
 
-                # Get financial statements
-                income_stmt = ticker.financials
-                balance_sheet = ticker.balance_sheet
-                cash_flow = ticker.cashflow
+            # Sequential fetch avoids triggering YF burst rate limits
+            income = ticker.financials
+            balance = ticker.balance_sheet
+            cash = ticker.cashflow
 
-                # Check if we got valid data
-                if (income_stmt is not None and len(income_stmt.columns) > 0 and
-                    balance_sheet is not None and len(balance_sheet.columns) > 0):
+            if income is not None and balance is not None:
+                logger.warning(f"DEBUG: {symbol} shapes - income:{income.shape}, balance:{balance.shape}")
+            else:
+                logger.warning(f"DEBUG: {symbol} shapes - income:{'None' if income is None else 'Not None'}, balance:{'None' if balance is None else 'Not None'}")
 
-                    logger.info(f"✅ Found data for {symbol_format}: Income={income_stmt.shape}, Balance={balance_sheet.shape}, Cash={cash_flow.shape if cash_flow is not None else 'None'}")
+            if (income is not None and len(income.columns) > 0 and
+                    balance is not None and len(balance.columns) > 0):
+                logger.warning(f"✅ FOUND DATA {symbol}: income={income.shape}, balance={balance.shape}")
+                return {"symbol": symbol, "income": income, "balance": balance, "cash": cash}
+            
+            logger.warning(f"❌ EMPTY DATA {symbol}: cols(inc)={len(income.columns) if income is not None else 0}, cols(bal)={len(balance.columns) if balance is not None else 0}")
+            return None
+        except Exception as e:
+            logger.warning(f"Symbol {symbol} exception: {e}")
+            return None
 
-                    # Process income statements (latest 3 years)
-                    for i in range(min(3, len(income_stmt.columns))):
-                        stmt_data = income_stmt.iloc[:, i].to_dict()
-                        stmt_data['date'] = str(income_stmt.columns[i].date())
+    # Try formats sequentially but fast (5s timeout per attempt)
+    data = None
+    for fmt in symbol_formats:
+        logger.info(f"Trying symbol format: {fmt}")
+        try:
+            # Run blocking fetch in a thread so it doesn't stall the event loop
+            result = await asyncio.wait_for(
+                asyncio.to_thread(fetch_one_symbol, fmt),
+                timeout=7.0
+            )
+            if result is not None:
+                data = result
+                break
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout fetching {fmt}")
+            continue
+        except Exception as e:
+            logger.warning(f"Error checking {fmt}: {e}")
+            continue
 
-                        financial_statements.append({
-                            'statement_type': 'income_statement',
-                            'period_end': str(income_stmt.columns[i].date()),
-                            'data': stmt_data
-                        })
-
-                    # Process balance sheets (latest 3 years)
-                    for i in range(min(3, len(balance_sheet.columns))):
-                        stmt_data = balance_sheet.iloc[:, i].to_dict()
-                        stmt_data['date'] = str(balance_sheet.columns[i].date())
-
-                        financial_statements.append({
-                            'statement_type': 'balance_sheet',
-                            'period_end': str(balance_sheet.columns[i].date()),
-                            'data': stmt_data
-                        })
-
-                    # Process cash flow statements (latest 3 years)
-                    if cash_flow is not None:
-                        for i in range(min(3, len(cash_flow.columns))):
-                            stmt_data = cash_flow.iloc[:, i].to_dict()
-                            stmt_data['date'] = str(cash_flow.columns[i].date())
-
-                            financial_statements.append({
-                                'statement_type': 'cash_flow_statement',
-                                'period_end': str(cash_flow.columns[i].date()),
-                                'data': stmt_data
-                            })
-
-                    # Success! We found working data
-                    logger.info(f"✅ Successfully fetched real data for {company_symbol} using {symbol_format}")
-                    return financial_statements
-
-            except Exception as e:
-                logger.warning(f"Failed to fetch data for {symbol_format}: {e}")
-                continue
-
-        # No symbol format worked
-        logger.warning(f"❌ No Yahoo Finance data available for {company_symbol} in any format")
+    if not data:
+        logger.warning(f"❌ No Yahoo Finance data for {company_symbol} in any format")
         return []
 
-    except Exception as e:
-        logger.error(f"Error fetching Yahoo Finance data for {company_symbol}: {e}")
-        return []
+    income_stmt  = data["income"]
+    balance_sheet = data["balance"]
+    cash_flow    = data["cash"]
+    used_symbol  = data["symbol"]
+    financial_statements = []
+
+    for i in range(min(3, len(income_stmt.columns))):
+        stmt_data = income_stmt.iloc[:, i].to_dict()
+        stmt_data['date'] = str(income_stmt.columns[i].date())
+        financial_statements.append({
+            'statement_type': 'income_statement',
+            'period_end': str(income_stmt.columns[i].date()),
+            'data': stmt_data
+        })
+
+    for i in range(min(3, len(balance_sheet.columns))):
+        stmt_data = balance_sheet.iloc[:, i].to_dict()
+        stmt_data['date'] = str(balance_sheet.columns[i].date())
+        financial_statements.append({
+            'statement_type': 'balance_sheet',
+            'period_end': str(balance_sheet.columns[i].date()),
+            'data': stmt_data
+        })
+
+    if cash_flow is not None:
+        for i in range(min(3, len(cash_flow.columns))):
+            stmt_data = cash_flow.iloc[:, i].to_dict()
+            stmt_data['date'] = str(cash_flow.columns[i].date())
+            financial_statements.append({
+                'statement_type': 'cash_flow_statement',
+                'period_end': str(cash_flow.columns[i].date()),
+                'data': stmt_data
+            })
+
+    logger.info(f"✅ Fetched {len(financial_statements)} statements for {company_symbol} via {used_symbol}")
+    return financial_statements
+
 
 
 @forensic_router.post("/{company_symbol}")
 async def run_forensic_analysis_api(company_symbol: str):
     """Run comprehensive forensic analysis for a company"""
+    import asyncio
     try:
         logger.info(f"Starting forensic analysis for {company_symbol}")
 
@@ -297,9 +330,15 @@ async def run_forensic_analysis_api(company_symbol: str):
                 detail=f"Insufficient financial data for {company_symbol}. Need at least 2 periods of data."
             )
 
-        # Run comprehensive forensic analysis with real data
+        # Run comprehensive forensic analysis — CPU-heavy, run in thread so event loop stays free
         try:
-            analysis_result = forensic_agent.comprehensive_forensic_analysis(company_symbol, financial_statements)
+            analysis_result = await asyncio.wait_for(
+                asyncio.to_thread(forensic_agent.comprehensive_forensic_analysis, company_symbol, financial_statements),
+                timeout=60.0  # 60s cap — prevents single analysis from blocking the worker
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Forensic analysis timed out for {company_symbol}")
+            raise HTTPException(status_code=504, detail=f"Analysis timed out for {company_symbol}. Please try again.")
         except Exception as agent_error:
             logger.error(f"Agent 2 (Forensic) crashed for {company_symbol}: {agent_error}")
             return {
@@ -393,9 +432,6 @@ async def run_forensic_analysis_api(company_symbol: str):
                 'next_review_date': datetime.utcnow().isoformat()
             }
 
-        # Sanitize all values for JSON serialization (handle numpy types/NaN/etc.)
-        response_data = _make_json_safe(response_data)
-
         # 5. Generate SEBI Risk Dashboard Data (NEW)
         try:
             sebi_data = _generate_sebi_dashboard_data(company_symbol, analysis_result, risk_assessment)
@@ -403,6 +439,9 @@ async def run_forensic_analysis_api(company_symbol: str):
         except Exception as e:
             logger.warning(f"SEBI data generation failed: {e}")
             response_data['sebi_risk_analysis'] = None
+
+        # Sanitize all values for JSON serialization (handle numpy types/NaN/etc.)
+        response_data = _make_json_safe(response_data)
 
         # 6. Index for Q&A in the background
         try:
@@ -421,6 +460,7 @@ async def run_forensic_analysis_api(company_symbol: str):
         raise
     except Exception as e:
         logger.error(f"Error in forensic analysis for {company_symbol}: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Forensic analysis failed: {str(e)}")
 
 
@@ -579,9 +619,22 @@ async def generate_comprehensive_report_api(company_symbol: str):
                 'overall_compliance_score': compliance_assessment.overall_compliance_score,
                 'compliance_status': compliance_assessment.compliance_status,
                 'framework_scores': {framework.value: score for framework, score in compliance_assessment.framework_scores.items()},
-                'violations': compliance_assessment.violations,
+                # Serialize ComplianceViolation dataclass objects to plain dicts
+                'violations': [
+                    {
+                        'framework': v.framework.value if hasattr(v.framework, 'value') else str(v.framework),
+                        'rule_id': v.rule_id,
+                        'severity': v.severity.value if hasattr(v.severity, 'value') else str(v.severity),
+                        'violation_description': v.violation_description,
+                        'regulatory_reference': v.regulatory_reference,
+                        'remediation_steps': v.remediation_steps,
+                    }
+                    for v in compliance_assessment.violations
+                ],
+                'violations_count': len(compliance_assessment.violations),
                 'recommendations': compliance_assessment.recommendations,
-                'next_review_date': compliance_assessment.next_review_date
+                'next_review_date': compliance_assessment.next_review_date,
+                'governance_score': compliance_assessment.governance_score
             }
         }
 
@@ -594,10 +647,9 @@ async def generate_comprehensive_report_api(company_symbol: str):
         )
 
         if not comprehensive_report.get('success'):
-            raise HTTPException(
-                status_code=500,
-                detail=f"Comprehensive report generation failed: {comprehensive_report.get('error')}"
-            )
+            # Don't raise 500 — report generation can fail (e.g. Gemini rate limits, PDF bugs)
+            # The forensic analysis itself succeeded, so we still return the analysis data
+            logger.warning(f"Report generation failed for {company_symbol} (non-fatal): {comprehensive_report.get('error')}")
 
         return {
             "success": True,

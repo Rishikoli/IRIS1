@@ -17,7 +17,7 @@ class MarketSentimentAgent:
     """Agent 8: Market Sentiment Analysis using Google Trends and News Scraping"""
 
     def __init__(self):
-        self.pytrends = TrendReq(hl='en-US', tz=360)
+        self.pytrends = None  # Lazy-initialized on first use to avoid blocking startup
         # self._initialize_gemini() # REMOVED
         self._initialize_finbert()
 
@@ -58,7 +58,7 @@ class MarketSentimentAgent:
                 # _get_news_sentiment is already async, just ensure it doesn't hang indefinitely
                 news_data = await asyncio.wait_for(
                     self._get_news_sentiment(company_symbol),
-                    timeout=10.0
+                    timeout=45.0
                 )
             except asyncio.TimeoutError:
                 logger.warning(f"News sentiment timed out for {company_symbol}")
@@ -88,7 +88,15 @@ class MarketSentimentAgent:
         try:
             # Clean keyword (remove .NS, .BO suffix for better trends results)
             search_term = keyword.split('.')[0]
-            
+
+            # Lazy-init pytrends on first actual use
+            if self.pytrends is None:
+                try:
+                    self.pytrends = TrendReq(hl='en-US', tz=360)
+                except Exception as init_err:
+                    logger.warning(f"PyTrends init failed: {init_err}")
+                    return {"status": "error", "message": "Google Trends unavailable", "data": []}
+
             # Using try-except block specifically for PyTrends as it's prone to 429 errors
             try:
                 self.pytrends.build_payload([search_term], cat=0, timeframe='today 1-m', geo='IN', gprop='')
@@ -242,6 +250,10 @@ class MarketSentimentAgent:
 
     def _analyze_headlines_with_finbert(self, headlines: List[Dict]) -> Dict[str, Any]:
         """Use FinBERT to analyze sentiment of headlines"""
+        if not self.finbert:
+            logger.info("FinBERT not initialized, attempting lazy initialization...")
+            self._initialize_finbert()
+            
         if not self.finbert:
             return {"score": 0, "label": "Unknown (Model unavailable)"}
 

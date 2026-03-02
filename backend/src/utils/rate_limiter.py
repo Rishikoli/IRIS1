@@ -43,9 +43,16 @@ class GeminiRateLimiter:
                         model = genai.GenerativeModel(model_name, generation_config=generation_config)
                         
                         try:
-                            # Run the synchronous generate_content in a thread
-                            response = await asyncio.to_thread(func, model)
-                            return response
+                            # Run the synchronous generate_content in a thread with timeout
+                            try:
+                                response = await asyncio.wait_for(
+                                    asyncio.to_thread(func, model),
+                                    timeout=25.0 # Individual call timeout
+                                )
+                                return response
+                            except asyncio.TimeoutError:
+                                logger.error(f"Gemini API call timed out for key ending in ...{key[-4:]}")
+                                raise Exception("Gemini API call timed out")
                         finally:
                             self.last_call_time[key] = time.time()
                     except Exception as e:

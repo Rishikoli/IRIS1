@@ -22,6 +22,7 @@ class ComplianceFramework(Enum):
     COMPANIES_ACT = "companies_act"
     RBI = "rbi"
     IFRS = "ifrs"
+    GOVERNANCE = "governance"
 
 class ComplianceSeverity(Enum):
     """Compliance violation severity levels"""
@@ -55,6 +56,7 @@ class ComplianceAssessment:
     framework_scores: Dict[ComplianceFramework, float]
     recommendations: List[str]
     next_review_date: str
+    governance_score: Optional[float] = None # Added Governance Score
 
 class ComplianceValidationAgent:
     """Agent 4: Compliance validation with regulatory frameworks"""
@@ -89,25 +91,16 @@ class ComplianceValidationAgent:
                     ComplianceFramework.IND_AS: rules_data.get("ind_as", {}),
                     ComplianceFramework.SEBI: rules_data.get("sebi", {}),
                     ComplianceFramework.COMPANIES_ACT: rules_data.get("companies_act", {}),
-                    ComplianceFramework.RBI: rules_data.get("rbi", {})
+                    ComplianceFramework.RBI: rules_data.get("rbi", {}),
+                    ComplianceFramework.GOVERNANCE: rules_data.get("governance", {})
                 }
                 logger.info(f"Loaded compliance rules from {config_path}")
             else:
                 logger.warning(f"Compliance rules config not found at {config_path}. Using empty rules.")
-                self.compliance_rules = {
-                    ComplianceFramework.IND_AS: {},
-                    ComplianceFramework.SEBI: {},
-                    ComplianceFramework.COMPANIES_ACT: {},
-                    ComplianceFramework.RBI: {}
-                }
+                self.compliance_rules = {f: {} for f in ComplianceFramework}
         except Exception as e:
             logger.error(f"Failed to load compliance rules: {e}")
-            self.compliance_rules = {
-                ComplianceFramework.IND_AS: {},
-                ComplianceFramework.SEBI: {},
-                ComplianceFramework.COMPANIES_ACT: {},
-                ComplianceFramework.RBI: {}
-            }
+            self.compliance_rules = {f: {} for f in ComplianceFramework}
 
     def validate_compliance(self, company_symbol: str, financial_data: Dict[str, Any]) -> ComplianceAssessment:
         """Validate compliance across all regulatory frameworks"""
@@ -117,7 +110,7 @@ class ComplianceValidationAgent:
             violations = []
             framework_scores = {}
             
-            # Validate against each framework
+            # Helper to calculate framework score
             for framework in ComplianceFramework:
                 if framework in self.compliance_rules:
                     framework_violations = self._validate_framework(framework, financial_data)
@@ -127,7 +120,8 @@ class ComplianceValidationAgent:
                     penalty_points = sum(self._get_penalty_points(v.severity) for v in framework_violations)
                     framework_scores[framework] = max(0, 100 - penalty_points)
             
-            # Calculate overall compliance score
+            # Calculate overall compliance score (excluding Governance for now from this average if preferred, but adding it makes sense)
+            # We will include all frameworks in the average
             overall_score = sum(framework_scores.values()) / len(framework_scores) if framework_scores else 0
             
             # Determine compliance status
@@ -147,7 +141,8 @@ class ComplianceValidationAgent:
                 violations=violations,
                 framework_scores=framework_scores,
                 recommendations=recommendations,
-                next_review_date=next_review_date
+                next_review_date=next_review_date,
+                governance_score=round(framework_scores.get(ComplianceFramework.GOVERNANCE, 0.0), 2)
             )
             
         except Exception as e:
@@ -335,15 +330,20 @@ class ComplianceValidationAgent:
         return penalty_map.get(severity, 10)
 
     def _determine_compliance_status(self, overall_score: float, violations: List[ComplianceViolation]) -> str:
-        """Determine overall compliance status"""
-        critical_violations = [v for v in violations if v.severity == ComplianceSeverity.CRITICAL]
+        """Determine overall compliance status based on strict thresholds"""
+        # Logic: Compliant (80+), Warning (60-79), Violation (<60)
         
-        if critical_violations:
-            return "NON_COMPLIANT"
-        elif overall_score >= 80:
+        # Override: Critical violations automatically cap score at Warning or Violation level if needed,
+        # but the penalty system (25 pts for Critical) handles this naturally.
+        # e.g. 100 - 25 = 75 (Warning). 
+        # If multiple criticals, 100 - 50 = 50 (Violation).
+        
+        if overall_score >= 80:
             return "COMPLIANT"
+        elif 60 <= overall_score < 80:
+            return "WARNING"
         else:
-            return "PARTIAL_COMPLIANCE"
+            return "VIOLATION"
 
     def _generate_compliance_recommendations(self, violations: List[ComplianceViolation]) -> List[str]:
         """Generate compliance recommendations"""
@@ -375,9 +375,9 @@ class ComplianceValidationAgent:
 
     def _calculate_next_review_date(self, compliance_status: str) -> str:
         """Calculate next compliance review date"""
-        if compliance_status == "NON_COMPLIANT":
+        if compliance_status == "VIOLATION":
             next_review = datetime.now() + timedelta(days=30)  # Monthly review
-        elif compliance_status == "PARTIAL_COMPLIANCE":
+        elif compliance_status == "WARNING":
             next_review = datetime.now() + timedelta(days=90)  # Quarterly review
         else:
             next_review = datetime.now() + timedelta(days=180)  # Semi-annual review
@@ -471,11 +471,11 @@ class ComplianceValidationAgent:
                     
                     # If this is the VERY latest filing, reflect current status issues
                     if i == len(real_dates) - 1: # Latest
-                        if current_status == "NON_COMPLIANT":
+                        if current_status == "VIOLATION":
                             status = "violation"
                             notes = "Regulatory Issues Detected"
-                        elif current_status == "PARTIAL_COMPLIANCE":
-                            status = "violation"
+                        elif current_status == "WARNING":
+                            status = "violation" # Or warning? Frontend likely expects violation/compliant
                             notes = "Partial Disclosures"
                     
                     history.append({

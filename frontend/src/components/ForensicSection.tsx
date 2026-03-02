@@ -159,7 +159,7 @@ export default function ForensicSection({ analysisData, isLoading = false, senti
 
   const subTabs = [
     { id: 'network', label: 'RPT Network', icon: '🕸️' },
-    { id: 'sentinel', label: 'Market Sentinel', icon: '🚨' },
+
     { id: 'sentiment', label: 'News Sentiment', icon: '📰' },
     { id: 'risk_explainability', label: 'Risk Explainability', icon: '📉' },
     { id: 'sebi', label: 'SEBI Advisory', icon: '🛡️' },

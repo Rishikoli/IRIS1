@@ -1858,17 +1858,7 @@ export default function IRISAnalyticsDashboard() {
                   </div>
                 </div>
 
-                {/* Dechow F-Score Analysis Section */}
-                <div className="mb-6">
-                  <div className="neumorphic-card rounded-3xl p-8 glass-morphism" style={{
-                    background: 'var(--card)', color: 'var(--foreground)',
-                    backdropFilter: 'blur(15px)',
-                    boxShadow: '16px 16px 32px rgba(0,0,0,0.1), -16px -16px 32px rgba(255,255,255,0.9)',
-                    border: '2px solid rgba(245, 158, 11, 0.2)'
-                  }}>
-                    <DechowFScoreChart data={analysisData} />
-                  </div>
-                </div>
+
               </>
             ) : null
           }

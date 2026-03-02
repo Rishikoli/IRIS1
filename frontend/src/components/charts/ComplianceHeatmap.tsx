@@ -13,8 +13,8 @@ const ComplianceHeatmap: React.FC<ComplianceHeatmapProps> = ({ scores }) => {
         const score = typeof value === 'object' && value !== null ? (value.score || 0) : Number(value);
         const name = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-        // Color Logic
-        let bgClass = 'bg-red-500';
+        // Color Logic: Compliant (80+), Warning (60-79), Violation (<60)
+        let bgClass = 'bg-red-500'; // Violation by default
         if (score >= 80) bgClass = 'bg-emerald-500';
         else if (score >= 60) bgClass = 'bg-yellow-500';
 
